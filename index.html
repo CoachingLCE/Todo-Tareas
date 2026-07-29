@@ -2161,6 +2161,7 @@ function renderDayProgress(){
         <div class="dpc-hero-item"><div class="num">${pendingToday.length}</div><div class="label">tarea${pendingToday.length===1?'':'s'} hoy</div></div>
         <div class="dpc-hero-item"><div class="num" style="color:${highTodayCount>0?'var(--high)':'inherit'}">${highTodayCount}</div><div class="label">importante${highTodayCount===1?'':'s'}</div></div>
         <div class="dpc-hero-item"><div class="num" style="color:${overdueCount>0?'var(--high)':'inherit'}">${overdueCount}</div><div class="label">vencida${overdueCount===1?'':'s'}</div></div>
+        <div class="dpc-hero-item"><div class="num" style="color:${doneToday>0?'var(--success)':'inherit'}">${doneToday}</div><div class="label">completada${doneToday===1?'':'s'}</div></div>
       </div>
       <div class="dpc-progress-row">
         <div class="dpc-collapsible" style="flex:1;display:flex;">${barsHtml}</div>
