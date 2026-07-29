@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mis tareas</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233b6bf0'/%3E%3Cpath d='M18 33 L28 43 L46 21' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f6f4; --card:#ffffff; --card-hover:#fafaf9; --border:#e8e7e3; --border-strong:#d6d4cd;
+    --text:#22221f; --text-2:#6e6d67; --text-muted:#a3a199;
+    --accent:#3b6bf0; --accent-bg:#eaf0ff; --accent-strong:#2954c7;
+    --high:#e0453c; --high-bg:#fdeceb;
+    --med:#dd9012; --med-bg:#fdf3e3;
+    --low:#3f95a8; --low-bg:#e9f5f7;
+    --success:#2f9e5b; --success-bg:#e7f6ee;
+    --radius-sm:8px; --radius:12px; --radius-lg:16px;
+    --shadow-sm:0 1px 2px rgba(20,20,15,.04);
+    --shadow-md:0 2px 10px rgba(20,20,15,.06);
+    --shadow-lg:0 10px 30px rgba(20,20,15,.12);
+    --ease:cubic-bezier(.2,.7,.3,1);
+  }
+  [data-theme="dark"]{
+    --bg:#15151a; --card:#1e1e24; --card-hover:#24242b; --border:#2d2d35; --border-strong:#3e3e48;
+    --text:#eeeef2; --text-2:#a3a2ac; --text-muted:#6c6b76;
+    --accent:#6f93f7; --accent-bg:#1c2846; --accent-strong:#8caaff;
+    --high:#f0716a; --high-bg:#3a2020;
+    --med:#f0ab4d; --med-bg:#3a2c14;
+    --low:#5eb3c4; --low-bg:#173238;
+    --success:#4fbf82; --success-bg:#123322;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+    --shadow-md:0 2px 10px rgba(0,0,0,.35);
+    --shadow-lg:0 10px 30px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    background:var(--bg);color:var(--text);transition:background .25s var(--ease),color .25s var(--ease);
+    -webkit-font-smoothing:antialiased;}
+  .app{display:flex;height:100vh;}
+  .app.focus-mode .sidebar,.app.focus-mode .suggestions-panel{display:none;}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{width:246px;background:var(--card);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;overflow-y:auto;}
+  .sidebar-brand{display:flex;justify-content:space-between;align-items:center;margin:2px 8px 16px;}
+  .sidebar-brand h1{font-size:15.5px;font-weight:600;margin:0;letter-spacing:-.01em;}
+  .theme-toggle{background:none;border:none;border-radius:var(--radius-sm);width:30px;height:30px;cursor:pointer;font-size:14px;color:var(--text-2);transition:background .15s;}
+  .theme-toggle:hover{background:var(--bg);}
+  .search-btn{display:flex;align-items:center;gap:8px;margin:0 0 16px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:13px;cursor:pointer;background:var(--bg);transition:border-color .15s;}
+  .search-btn:hover{border-color:var(--border-strong);}
+  .search-btn .kbd{margin-left:auto;font-size:11px;opacity:.6;border:1px solid var(--border);border-radius:4px;padding:0 4px;}
+
+  .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;color:var(--text-2);margin-bottom:1px;transition:background .12s;}
+  .nav-item:hover{background:var(--bg);}
+  .nav-item.active{background:var(--accent-bg);color:var(--accent-strong);font-weight:600;}
+  .nav-item .nav-icon{width:16px;text-align:center;font-size:13px;opacity:.9;}
+  .nav-item .count{margin-left:auto;font-size:11.5px;color:var(--text-muted);}
+  .nav-item.active .count{color:var(--accent-strong);}
+
+  .section-toggle{display:flex;align-items:center;justify-content:space-between;font-size:11px;text-transform:uppercase;color:var(--text-muted);margin:18px 6px 6px;letter-spacing:.05em;cursor:pointer;user-select:none;}
+  .section-toggle .chev{transition:transform .15s;}
+  .section-toggle.collapsed .chev{transform:rotate(-90deg);}
+  .section-body.collapsed{display:none;}
+
+  .list-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;color:var(--text-2);transition:background .12s;}
+  .list-row:hover{background:var(--bg);}
+  .list-row.active{background:var(--accent-bg);color:var(--accent-strong);font-weight:600;}
+  .list-row .dot{width:7px;height:7px;border-radius:50%;margin-right:9px;display:inline-block;flex-shrink:0;}
+  .list-row.dragging{opacity:.4;}
+  .list-row.drag-over{box-shadow:inset 0 2px 0 var(--accent);}
+  .list-row-inner{display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .add-list{display:flex;gap:6px;padding:6px 2px;margin-top:2px;}
+  .add-list input{flex:1;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 9px;font-size:13px;background:var(--card);color:var(--text);}
+  .add-list button{border:none;background:var(--accent);color:#fff;border-radius:var(--radius-sm);padding:6px 11px;font-size:13px;cursor:pointer;}
+  .del-list-btn{opacity:0;font-size:12px;color:var(--text-muted);cursor:pointer;padding:2px 4px;}
+  .list-row:hover .del-list-btn{opacity:1;}
+  .import-btn{margin-top:10px;}
+
+  /* ---------- Main ---------- */
+  .main{flex:1;overflow-y:auto;padding:0 40px 40px;}
+  .top-header{position:sticky;top:0;background:var(--bg);padding:26px 0 18px;z-index:5;}
+  .header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}
+  .main-header{font-size:24px;font-weight:600;margin-bottom:3px;letter-spacing:-.015em;}
+  .main-sub{font-size:13px;color:var(--text-muted);}
+  .header-actions{display:flex;gap:8px;flex-shrink:0;}
+  .hbtn{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);width:34px;height:34px;font-size:14px;cursor:pointer;color:var(--text-2);transition:border-color .15s,background .15s;}
+  .hbtn:hover{border-color:var(--border-strong);background:var(--card-hover);}
+  .hbtn.on{background:var(--accent-bg);color:var(--accent-strong);border-color:var(--accent);}
+
+  .day-progress-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;margin-top:16px;box-shadow:var(--shadow-sm);}
+  .dpc-row{display:flex;align-items:center;gap:18px;}
+  .dpc-ring-wrap{flex-shrink:0;width:52px;height:52px;position:relative;}
+  .dpc-ring-wrap svg{transform:rotate(-90deg);}
+  .dpc-ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+  .dpc-text{flex:1;min-width:0;}
+  .dpc-msg{font-size:13.5px;font-weight:500;margin-bottom:2px;}
+  .dpc-stats{font-size:12px;color:var(--text-muted);}
+
+  .add-task-wrap{margin:22px 0 20px;}
+  .add-task{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;flex-wrap:wrap;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s;}
+  .add-task:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
+  .add-task input[type=text]{flex:1;min-width:180px;border:none;outline:none;font-size:14.5px;background:transparent;color:var(--text);}
+  .prio-select{display:flex;gap:5px;}
+  .prio-btn{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);cursor:pointer;background:transparent;transition:transform .12s;}
+  .prio-btn:hover{transform:scale(1.12);}
+  .prio-btn.high{border-color:var(--high);} .prio-btn.high.sel{background:var(--high);}
+  .prio-btn.med{border-color:var(--med);} .prio-btn.med.sel{background:var(--med);}
+  .prio-btn.low{border-color:var(--low);} .prio-btn.low.sel{background:var(--low);}
+  .add-task input[type=date]{border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;font-size:12px;color:var(--text-2);background:var(--bg);}
+  .add-task-submit{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;}
+  .add-task-submit:hover{background:var(--accent-strong);}
+  .smart-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding:0 2px;}
+  .smart-chip{font-size:11.5px;padding:4px 11px;border-radius:20px;background:var(--accent-bg);color:var(--accent-strong);font-weight:600;display:flex;align-items:center;gap:5px;animation:chipIn .18s var(--ease);}
+  @keyframes chipIn{from{opacity:0;transform:translateY(-3px) scale(.95);}to{opacity:1;transform:translateY(0) scale(1);}}
+  .similar-warning{font-size:12px;color:var(--med);margin-top:8px;padding:8px 12px;background:var(--med-bg);border-radius:var(--radius-sm);}
+
+  .filter-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+  .filter-chip{font-size:12px;padding:5px 13px;border-radius:20px;border:1px solid var(--border);color:var(--text-2);cursor:pointer;background:var(--card);transition:border-color .15s;}
+  .filter-chip:hover{border-color:var(--border-strong);}
+  .filter-chip.active{background:var(--accent-bg);color:var(--accent-strong);border-color:var(--accent);font-weight:600;}
+
+  .view-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+  .view-toolbar .left{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .toggle-pill{font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text-2);cursor:pointer;}
+  .toggle-pill.on{background:var(--accent-bg);color:var(--accent-strong);border-color:var(--accent);}
+
+  /* ---------- Task cards ---------- */
+  .task-group-label{font-size:11.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:20px 0 10px;}
+  .task{background:var(--card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:var(--radius);padding:13px 15px;margin-bottom:9px;
+    transition:opacity .25s var(--ease),transform .25s var(--ease),box-shadow .15s,border-color .15s;box-shadow:var(--shadow-sm);}
+  .task:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong);}
+  .task.prio-alta{border-left-color:var(--high);}
+  .task.prio-media{border-left-color:var(--med);}
+  .task.prio-baja{border-left-color:var(--low);}
+  .task.done{opacity:.5;}
+  .task.removing{opacity:0;transform:translateX(14px) scale(.98);}
+  .task.dragging{opacity:.35;}
+  .task.drag-over-task{border-top:2px solid var(--accent);}
+  .task.selected{box-shadow:0 0 0 2px var(--accent);}
+  .task-row{display:flex;align-items:flex-start;gap:11px;}
+  .checkbox{width:20px;height:20px;border-radius:50%;border:2px solid var(--border-strong);cursor:pointer;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;background:var(--card);transition:background .18s var(--ease),border-color .18s,transform .18s var(--ease);}
+  .checkbox:hover{border-color:var(--accent);}
+  .checkbox.checked{background:var(--success);border-color:var(--success);color:#fff;font-size:11px;transform:scale(1.06);}
+  .select-box{width:16px;height:16px;border-radius:5px;border:2px solid var(--border-strong);cursor:pointer;margin-top:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+  .select-box.checked{background:var(--accent);border-color:var(--accent);}
+  .task-body{flex:1;min-width:0;}
+  .task-title{font-size:14.5px;font-weight:500;cursor:pointer;line-height:1.4;}
+  .task-title:hover{color:var(--accent-strong);}
+  .task.done .task-title{text-decoration:line-through;color:var(--text-muted);}
+  .task-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;align-items:center;}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:4px;}
+  .badge.high{background:var(--high-bg);color:var(--high);}
+  .badge.med{background:var(--med-bg);color:var(--med);}
+  .badge.low{background:var(--low-bg);color:var(--low);}
+  .tag{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--bg);color:var(--text-2);border:1px solid var(--border);}
+  .date-badge{font-size:11px;color:var(--text-muted);padding:3px 9px;border-radius:20px;background:var(--bg);display:inline-flex;align-items:center;gap:4px;}
+  .date-badge.today{color:var(--accent-strong);background:var(--accent-bg);font-weight:600;}
+  .date-badge.overdue{color:var(--high);background:var(--high-bg);font-weight:600;}
+  .recur-badge{font-size:11px;color:var(--text-muted);}
+  .task-actions{display:flex;gap:4px;margin-left:8px;flex-shrink:0;}
+  .icon-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:4px 6px;border-radius:6px;transition:background .12s,color .12s;}
+  .icon-btn:hover{color:var(--text);background:var(--bg);}
+  .progress-bar-wrap{background:var(--bg);border-radius:20px;height:5px;overflow:hidden;margin-top:9px;width:100%;max-width:180px;}
+  .progress-bar{height:100%;background:var(--accent);border-radius:20px;transition:width .25s var(--ease);}
+
+  .subtasks{margin:11px 0 2px 31px;}
+  .subtask-row{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:13px;}
+  .subtask-row .checkbox{width:16px;height:16px;}
+  .subtask-row.done span{text-decoration:line-through;color:var(--text-muted);}
+  .add-sub{display:flex;gap:6px;margin-top:7px;}
+  .add-sub input{flex:1;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 9px;font-size:12px;background:var(--card);color:var(--text);}
+  .add-sub button{border:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 9px;font-size:12px;cursor:pointer;}
+
+  .add-tag-row{display:flex;gap:6px;margin-top:7px;}
+  .add-tag-row input{border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 9px;font-size:12px;width:120px;background:var(--card);color:var(--text);}
+  .add-tag-row button{border:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 9px;font-size:12px;cursor:pointer;}
+
+  .empty{color:var(--text-muted);font-size:13px;padding:24px 0;text-align:center;}
+  .expand-btn{background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;padding:0;margin-top:8px;}
+
+  /* ---------- Bulk selection bar ---------- */
+  .bulk-bar{position:sticky;top:0;z-index:6;background:var(--text);color:var(--bg);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;box-shadow:var(--shadow-lg);}
+  .bulk-bar .bulk-actions{display:flex;gap:8px;}
+  .bulk-bar button{background:rgba(255,255,255,.12);border:none;color:inherit;border-radius:var(--radius-sm);padding:6px 12px;font-size:12.5px;cursor:pointer;}
+  [data-theme="dark"] .bulk-bar button{background:rgba(0,0,0,.25);}
+
+  /* ---------- Context menu ---------- */
+  .context-menu{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:6px;z-index:1200;min-width:170px;}
+  .context-menu button{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 10px;font-size:13px;color:var(--text);border-radius:var(--radius-sm);cursor:pointer;}
+  .context-menu button:hover{background:var(--bg);}
+  .context-menu .danger{color:var(--high);}
+  .context-menu hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
+
+  /* ---------- Stats ---------- */
+  .stats-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm);}
+  .stat-card .num{font-size:23px;font-weight:600;letter-spacing:-.01em;}
+  .stat-card .label{font-size:12px;color:var(--text-muted);margin-top:3px;}
+  .stats-row{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:6px;font-size:13px;}
+  .stats-row .bar-wrap{flex:1;margin:0 14px;background:var(--bg);border-radius:20px;height:8px;overflow:hidden;}
+  .stats-row .bar{height:100%;background:var(--accent);border-radius:20px;}
+  .stats-row .day-count{font-weight:600;min-width:20px;text-align:right;}
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .chart-card canvas{max-height:220px;}
+
+  /* ---------- Overlays / modals ---------- */
+  .celebration-overlay,.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,15,10,.45);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(1px);}
+  .celebration-box{background:var(--card);border-radius:var(--radius-lg);padding:30px 34px;text-align:center;max-width:280px;box-shadow:var(--shadow-lg);}
+  .celebration-box .big{font-size:34px;margin-bottom:8px;}
+  .celebration-box .title{font-size:16px;font-weight:600;margin-bottom:4px;}
+  .celebration-box .sub{font-size:13px;color:var(--text-muted);margin-bottom:18px;}
+  .celebration-box button{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;}
+
+  .modal-box{background:var(--card);border-radius:var(--radius-lg);padding:26px;width:460px;max-width:92vw;max-height:86vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+  .modal-box h2{font-size:17.5px;font-weight:600;margin:0 0 18px;letter-spacing:-.01em;}
+  .field-label{font-size:11.5px;color:var(--text-muted);margin:13px 0 5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  .modal-box input[type=text],.modal-box textarea,.modal-box select,.modal-box input[type=date],.modal-box input[type=number]{
+    width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;font-size:13.5px;background:var(--bg);color:var(--text);font-family:inherit;
+  }
+  .modal-box textarea{resize:vertical;min-height:70px;}
+  .modal-actions{display:flex;justify-content:space-between;margin-top:22px;gap:8px;}
+  .modal-actions .right{display:flex;gap:8px;}
+  .btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:var(--radius-sm);padding:9px 17px;font-size:13px;cursor:pointer;transition:border-color .15s;}
+  .btn:hover{border-color:var(--border-strong);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .btn.primary:hover{background:var(--accent-strong);}
+  .btn.danger{color:var(--high);border-color:var(--high-bg);}
+  .modal-row2{display:flex;gap:10px;}
+  .modal-row2>div{flex:1;}
+  .recur-extra{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;}
+  .reminder-item{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12.5px;}
+  .ai-panel{margin-top:14px;padding:14px;border:1px dashed var(--border-strong);border-radius:var(--radius);}
+  .ai-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .ai-actions-grid button{font-size:12px;padding:7px 8px;}
+  .ai-result-box{margin-top:10px;font-size:13px;background:var(--bg);border-radius:var(--radius-sm);padding:10px 12px;}
+  .ai-sub-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;}
+
+  .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,15,10,.4);display:flex;justify-content:center;padding-top:80px;z-index:999;}
+  .search-box{background:var(--card);border-radius:var(--radius-lg);width:540px;max-width:92vw;max-height:70vh;overflow-y:auto;box-shadow:var(--shadow-lg);padding:18px;}
+  .search-box input{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:14px;background:var(--bg);color:var(--text);margin-bottom:12px;}
+  .search-result{padding:10px 11px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;}
+  .search-result:hover{background:var(--bg);}
+  .search-result .r-title{font-weight:500;}
+  .search-result .r-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--card);padding:11px 20px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:16px;z-index:998;box-shadow:var(--shadow-lg);animation:toastIn .18s var(--ease);}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px);}to{opacity:1;transform:translate(-50%,0);}}
+  .toast button{background:none;border:none;color:var(--accent-strong);font-weight:600;cursor:pointer;font-size:13px;}
+
+  .suggestions-panel{width:280px;background:var(--card);border-left:1px solid var(--border);padding:22px;overflow-y:auto;display:none;}
+  .suggestions-panel.open{display:block;}
+  .suggestions-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .suggestions-header h2{font-size:17px;font-weight:600;margin:0;}
+  .suggestion-group-label{font-size:11.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin:16px 0 8px;}
+  .suggestion-group-label:first-child{margin-top:0;}
+  .suggestion-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+  .suggestion-row .s-title{font-size:13px;}
+  .suggestion-row .s-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .suggestion-add{background:none;border:none;color:var(--accent);font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;}
+
+  /* ---------- Calendar / Week ---------- */
+  .calendar-grid,.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;}
+  .cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .cal-nav button{border:1px solid var(--border);background:var(--card);border-radius:var(--radius-sm);padding:6px 12px;cursor:pointer;}
+  .cal-weekday{font-size:11px;color:var(--text-muted);text-align:center;padding:4px 0;text-transform:uppercase;font-weight:600;}
+  .cal-day{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);min-height:92px;padding:7px;font-size:12px;transition:background .12s;}
+  .cal-day.other-month{opacity:.4;}
+  .cal-day.today{border-color:var(--accent);border-width:2px;}
+  .cal-day.drag-over{background:var(--accent-bg);}
+  .cal-day .cal-day-num{font-weight:600;margin-bottom:5px;}
+  .cal-task-chip{font-size:10.5px;padding:3px 7px;border-radius:6px;background:var(--accent-bg);color:var(--accent-strong);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:grab;}
+  .cal-task-chip.high{background:var(--high-bg);color:var(--high);}
+  .cal-task-chip.med{background:var(--med-bg);color:var(--med);}
+  .cal-task-chip.done{opacity:.4;text-decoration:line-through;}
+  .cal-task-chip.overdue{outline:1px solid var(--high);}
+  .week-day{min-height:340px;}
+
+  /* ---------- Kanban ---------- */
+  .kanban-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;}
+  .kanban-col{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;min-height:200px;}
+  .kanban-col.drag-over{background:var(--accent-bg);}
+  .kanban-col-header{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;margin-bottom:10px;padding:0 2px;}
+  .kanban-col-header .dot{width:8px;height:8px;border-radius:50%;}
+  .kanban-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;margin-bottom:8px;font-size:12.5px;cursor:grab;}
+  .kanban-card.done{opacity:.5;text-decoration:line-through;}
+
+  /* ---------- Agenda ---------- */
+  .agenda-day{margin-bottom:6px;}
+
+  .pending-counter{font-size:12px;color:var(--text-muted);margin-bottom:16px;}
+  .reminder-banner{background:var(--med-bg);color:var(--med);border-radius:var(--radius-sm);padding:11px 15px;font-size:13px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
+  .reminder-banner button{background:none;border:none;color:var(--med);cursor:pointer;font-weight:600;}
+
+  /* ---------- Pomodoro / Focus ---------- */
+  .pomodoro-panel{position:fixed;bottom:24px;right:24px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;box-shadow:var(--shadow-lg);z-index:900;text-align:center;min-width:180px;}
+  .pomodoro-time{font-size:28px;font-weight:600;letter-spacing:-.02em;margin-bottom:8px;}
+  .pomodoro-mode{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+  .pomodoro-actions{display:flex;gap:6px;justify-content:center;}
+</style>
+</head>
+<body>
+<div class="app" id="app-root">
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <h1>Mis tareas</h1>
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" aria-label="Modo oscuro">🌙</button>
+    </div>
+    <div class="search-btn" onclick="openSearch()">🔍 Buscar <span class="kbd">/</span></div>
+    <div id="smart-views"></div>
+
+    <div class="section-toggle" id="filters-toggle" onclick="toggleSection('filters')"><span>Filtros</span><span class="chev">⌄</span></div>
+    <div class="section-body" id="quick-filters"></div>
+
+    <div class="section-toggle" id="lists-toggle" onclick="toggleSection('lists')"><span>Listas</span><span class="chev">⌄</span></div>
+    <div class="section-body" id="lists"></div>
+    <div class="add-list">
+      <input type="text" id="new-list-name" placeholder="Nueva lista">
+      <button onclick="addList()">+</button>
+    </div>
+    <div class="search-btn import-btn" onclick="openImport()">⬆️ Importar tareas</div>
+  </div>
+  <div class="main">
+    <div class="top-header">
+      <div class="header-row">
+        <div>
+          <div class="main-header" id="main-title">Mi día</div>
+          <div class="main-sub" id="main-sub"></div>
+        </div>
+        <div class="header-actions">
+          <button class="hbtn" onclick="openHelp()" title="Cómo funciona" aria-label="Cómo funciona">❓</button>
+          <button class="hbtn" id="select-mode-btn" onclick="toggleSelectMode()" title="Selección múltiple" aria-label="Selección múltiple">☑️</button>
+          <button class="hbtn" id="focus-mode-btn" onclick="toggleFocusMode()" title="Modo concentración" aria-label="Modo concentración">🎯</button>
+          <button class="hbtn" id="pomodoro-btn" onclick="togglePomodoroPanel()" title="Pomodoro" aria-label="Pomodoro">⏱️</button>
+          <button class="hbtn" onclick="toggleSuggestions()" title="Sugerencias" aria-label="Sugerencias">💡</button>
+        </div>
+      </div>
+      <div id="day-progress-container"></div>
+    </div>
+    <div id="reminder-banner-container"></div>
+    <div class="add-task-wrap" id="add-task-wrap">
+      <div class="add-task">
+        <input type="text" id="new-task-title" placeholder="Agregar una tarea (probá escribir 'mañana' o 'urgente')" oninput="onTitleInput()" onkeydown="if(event.key==='Enter')addTask()">
+        <div class="prio-select" id="new-prio">
+          <button class="prio-btn high" onclick="setNewPrio('alta')" title="Alta"></button>
+          <button class="prio-btn med" onclick="setNewPrio('media')" title="Media"></button>
+          <button class="prio-btn low" onclick="setNewPrio('baja')" title="Baja"></button>
+        </div>
+        <input type="date" id="new-task-date" onchange="manualDateOverride=true">
+        <button class="add-task-submit" onclick="addTask()">Agregar</button>
+      </div>
+      <div id="smart-chips-preview"></div>
+    </div>
+    <div id="bulk-bar-container"></div>
+    <div id="pending-counter" class="pending-counter"></div>
+    <div id="view-body"></div>
+  </div>
+  <div class="suggestions-panel" id="suggestions-panel">
+    <div class="suggestions-header">
+      <h2>Sugerencias</h2>
+      <button class="icon-btn" onclick="toggleSuggestions()" aria-label="Cerrar">✕</button>
+    </div>
+    <div id="suggestions-body"></div>
+  </div>
+</div>
+<div id="celebration-container"></div>
+<div id="modal-container"></div>
+<div id="search-container"></div>
+<div id="toast-container"></div>
+<div id="context-menu-container"></div>
+<div id="pomodoro-container"></div>
+<script>
+/* =====================================================================
+   ESTADO Y PERSISTENCIA
+   ===================================================================== */
+let state = { lists: [], tasks: [], currentView: {type:'list', id:null}, totalCompletedEver: 0, darkMode:false, hideCompleted:false };
+let newPrio = null;
+let manualPrioOverride = false;
+let manualDateOverride = false;
+let expanded = {};
+let suggestionsOpen = false;
+let draggedListId = null;
+let draggedTaskId = null;
+let calDate = new Date();
+let weekDate = new Date();
+let lastDeleted = null;
+let toastTimer = null;
+let selectMode = false;
+let selectedIds = new Set();
+let collapsedSections = {};
+let focusMode = false;
+
+const STORAGE_KEY = 'todo-app-state';
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function pad2(n){ return n<10 ? '0'+n : ''+n; }
+function toISO(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function todayISO(){ return toISO(new Date()); }
+function escapeHtml(s){ const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+
+/* Storage: usa window.storage dentro de Claude; si no existe (archivo abierto
+   suelto en el navegador), usa localStorage como respaldo. */
+const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage !== null;
+async function storageGet(key){
+  if(hasClaudeStorage) return await window.storage.get(key, false);
+  const raw = localStorage.getItem(key);
+  return raw !== null ? { key, value: raw, shared:false } : null;
+}
+async function storageSet(key, value){
+  if(hasClaudeStorage) return await window.storage.set(key, value, false);
+  localStorage.setItem(key, value);
+  return { key, value, shared:false };
+}
+
+/** Si hay un respaldo local guardado (por una falla previa del servidor), lo devuelve. */
+function tryRecoverLocalBackup(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY + '-backup');
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+
+async function loadState(){
+  let serverState = null;
+  try{
+    const res = await storageGet(STORAGE_KEY);
+    if(res && res.value) serverState = JSON.parse(res.value);
+  }catch(e){ console.error('Error leyendo el estado del servidor', e); }
+
+  const backupState = tryRecoverLocalBackup();
+  // Usamos lo que tenga la marca de tiempo más reciente: si el respaldo local es más nuevo
+  // que lo que devolvió el servidor, significa que un guardado anterior falló y hay que
+  // recuperar esos cambios (y volver a intentar guardarlos en el servidor).
+  const serverTime = serverState && serverState.lastSavedAt || 0;
+  const backupTime = backupState && backupState.lastSavedAt || 0;
+
+  if(backupState && backupTime > serverTime){
+    state = backupState;
+    await saveState();
+    try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+  } else if(serverState){
+    state = serverState;
+  } else {
+    seedDefault();
+    await saveState();
+  }
+  migrateState();
+  const imported = runPendingAutoImports();
+  applyTheme();
+  render();
+  renderReminderBanner();
+  if(imported) showToast('Se cargaron tus tareas pendientes automáticamente');
+  applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
+}
+
+/**
+ * Carga automática de una sola vez: agrega lotes de tareas predefinidos la primera vez
+ * que se abre el archivo, y no vuelve a repetirlos en aperturas futuras (marca cada lote
+ * como aplicado en state.appliedAutoImports). Así el usuario no tiene que pegar nada a mano.
+ */
+const AUTO_IMPORT_BATCHES = [
+  {
+    id: 'batch-sugerencias-2026-07-29',
+    listName: 'Personal',
+    pending: [
+      '25) Planificaciones deportivo',
+      '18) CUOITA AUTO',
+      '17) Publicidad',
+      '15) MAILS ILCE',
+      'CLASE FORMADOR PARA FORMADORES',
+      '16) FACTURAS',
+      '93) CURSO PAGA COMUNIDAD',
+      '104) Comprar Varnis',
+      'INPI',
+      '100) Planificaciones',
+      'OKR'
+    ],
+    done: [],
+    dueDate: null
+  },
+  {
+    id: 'batch-mi-dia-2026-07-29',
+    listName: 'Personal',
+    pending: [
+      'LEADS',
+      '+LIKES',
+      'LINKEDIN',
+      'Ver sesión de deportivo'
+    ],
+    done: [
+      'MAILS DIEGO',
+      'MAILS DIEGO',
+      'ARMAR EN CLAUDE ALGO SIMILAR A TODO',
+      'Aplicacion',
+      'MAILS DIEGO',
+      'CAIRO',
+      'CLASE DEPORTIVO',
+      '1) MAILS DIEGO',
+      'CAIRO'
+    ],
+    dueDate: '2026-07-29'
+  }
+];
+function runPendingAutoImports(){
+  if(!state.appliedAutoImports) state.appliedAutoImports = [];
+  let didImport = false;
+  AUTO_IMPORT_BATCHES.forEach(batch=>{
+    if(state.appliedAutoImports.includes(batch.id)) return;
+    let list = state.lists.find(l=> normalize(l.name)===normalize(batch.listName));
+    if(!list){ list = { id: uid(), name: batch.listName, color:'#3b6bf0' }; state.lists.push(list); }
+    let maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===list.id).map(t=>t.order||0));
+    batch.pending.forEach(title=>{
+      maxOrder++;
+      state.tasks.push({ id: uid(), listId:list.id, title, done:false, priority:null, tags:[], subtasks:[], notes:'',
+        dueDate: batch.dueDate, createdAt:Date.now(), completedAt:null, order:maxOrder, recurrence:null, reminderDaysBefore:null, reminders:[] });
+    });
+    batch.done.forEach(title=>{
+      maxOrder++;
+      state.tasks.push({ id: uid(), listId:list.id, title, done:true, priority:null, tags:[], subtasks:[], notes:'',
+        dueDate: batch.dueDate, createdAt:Date.now(), completedAt: batch.dueDate||todayISO(), order:maxOrder, recurrence:null, reminderDaysBefore:null, reminders:[] });
+      state.totalCompletedEver = (state.totalCompletedEver||0) + 1;
+    });
+    state.appliedAutoImports.push(batch.id);
+    didImport = true;
+  });
+  if(didImport) saveState();
+  return didImport;
+}
+
+/** Rellena campos nuevos en estados guardados por versiones anteriores, sin tocar los existentes. */
+function migrateState(){
+  if(!state.currentView) state.currentView = {type:'list', id: state.lists[0] ? state.lists[0].id : null};
+  if(typeof state.totalCompletedEver !== 'number') state.totalCompletedEver = state.tasks.filter(t=>t.done).length;
+  if(typeof state.darkMode !== 'boolean') state.darkMode = false;
+  if(state.themeMode !== 'auto' && state.themeMode !== 'manual') state.themeMode = 'auto';
+  if(typeof state.hideCompleted !== 'boolean') state.hideCompleted = false;
+  if(!state.focusSessions) state.focusSessions = [];
+  if(!state.lists.some(l=> normalize(l.name)==='ilce')){
+    state.lists.push({ id: uid(), name:'ILCE', color:'#8a5fd6' });
+  }
+  state.tasks.forEach((t,i)=>{
+    if(typeof t.order !== 'number') t.order = i;
+    if(typeof t.notes !== 'string') t.notes = '';
+    if(!t.tags) t.tags = [];
+    if(!t.subtasks) t.subtasks = [];
+    if(t.recurrence === undefined) t.recurrence = null;
+    if(t.reminderDaysBefore === undefined) t.reminderDaysBefore = null;
+    if(t.completedAtTime === undefined) t.completedAtTime = null;
+    if(!t.reminders){
+      t.reminders = (t.reminderDaysBefore !== null && t.reminderDaysBefore !== undefined) ? [t.reminderDaysBefore] : [];
+    }
+  });
+}
+
+function seedDefault(){
+  const l1 = uid(), l2 = uid(), l3 = uid();
+  state = {
+    lists: [
+      {id:l1, name:'Personal', color:'#3b6bf0'},
+      {id:l2, name:'Compras', color:'#3f95a8'},
+      {id:l3, name:'ILCE', color:'#8a5fd6'}
+    ],
+    tasks: [],
+    currentView: {type:'list', id:l1},
+    totalCompletedEver: 0,
+    darkMode: false,
+    themeMode: 'auto',
+    hideCompleted: false
+  };
+}
+
+let saveFailureNotified = false;
+async function saveState(){
+  state.lastSavedAt = Date.now();
+  const payload = JSON.stringify(state);
+  try{
+    await storageSet(STORAGE_KEY, payload);
+  }catch(e){
+    console.error('Error guardando (intento 1)', e);
+    try{
+      // Reintento simple por si fue un error transitorio del servidor
+      await storageSet(STORAGE_KEY, payload);
+    }catch(e2){
+      console.error('Error guardando (intento 2, uso respaldo local)', e2);
+      try{
+        // Respaldo: guardamos localmente para no perder los cambios de esta sesión
+        localStorage.setItem(STORAGE_KEY + '-backup', payload);
+        if(!saveFailureNotified){
+          saveFailureNotified = true;
+          showToast('El guardado en el servidor falló momentáneamente. Tus cambios quedaron respaldados en este navegador.');
+        }
+      }catch(e3){ console.error('Respaldo local también falló', e3); }
+    }
+  }
+}
+
+/* =====================================================================
+   TEMA / MODO FOCO
+   ===================================================================== */
+/* =====================================================================
+   MODO OSCURO AUTOMÁTICO (según amanecer/atardecer real del lugar)
+   ===================================================================== */
+const BUENOS_AIRES_COORDS = { lat:-34.6037, lon:-58.3816 };
+
+/** Cálculo de amanecer/atardecer (en horas UTC) para una fecha y coordenadas, fórmula NOAA simplificada. */
+function computeSunTimesUTC(lat, lon, date){
+  const rad = Math.PI/180;
+  const dayOfYear = Math.floor((date - new Date(date.getFullYear(),0,0)) / 86400000);
+  const lngHour = lon/15;
+  function calc(isSunrise){
+    const t = dayOfYear + ((isSunrise?6:18) - lngHour)/24;
+    const M = (0.9856*t) - 3.289;
+    let L = M + (1.916*Math.sin(M*rad)) + (0.020*Math.sin(2*M*rad)) + 282.634;
+    L = (L+360)%360;
+    let RA = (1/rad)*Math.atan(0.91764*Math.tan(L*rad));
+    RA = (RA+360)%360;
+    const Lquadrant = Math.floor(L/90)*90;
+    const RAquadrant = Math.floor(RA/90)*90;
+    RA = (RA + (Lquadrant - RAquadrant)) / 15;
+    const sinDec = 0.39782*Math.sin(L*rad);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH = (Math.cos(90.833*rad) - (sinDec*Math.sin(lat*rad))) / (cosDec*Math.cos(lat*rad));
+    if(cosH > 1 || cosH < -1) return null; // sol no sale o no se pone (latitudes extremas)
+    let H = isSunrise ? (360 - (1/rad)*Math.acos(cosH)) : ((1/rad)*Math.acos(cosH));
+    H = H/15;
+    const T = H + RA - (0.06571*t) - 6.622;
+    return ((T - lngHour) + 24) % 24;
+  }
+  return { sunriseUTC: calc(true), sunsetUTC: calc(false) };
+}
+
+function getLocationForTheme(){
+  return new Promise((resolve)=>{
+    if(!navigator.geolocation){ resolve(BUENOS_AIRES_COORDS); return; }
+    const timer = setTimeout(()=> resolve(BUENOS_AIRES_COORDS), 2500);
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ clearTimeout(timer); resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }); },
+      ()=>{ clearTimeout(timer); resolve(BUENOS_AIRES_COORDS); },
+      { timeout: 2000 }
+    );
+  });
+}
+
+/** Decide si debería estar en modo oscuro ahora mismo, según el sol, para el modo automático. */
+async function computeAutoDarkMode(){
+  try{
+    const { lat, lon } = await getLocationForTheme();
+    const now = new Date();
+    const { sunriseUTC, sunsetUTC } = computeSunTimesUTC(lat, lon, now);
+    if(sunriseUTC===null || sunsetUTC===null) return false;
+    const nowUTC = now.getUTCHours() + now.getUTCMinutes()/60;
+    const isDaytime = nowUTC >= sunriseUTC && nowUTC < sunsetUTC;
+    return !isDaytime;
+  }catch(e){ return false; }
+}
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', state.darkMode ? 'dark' : 'light');
+  document.getElementById('theme-btn').innerText = state.darkMode ? '☀️' : '🌙';
+  document.getElementById('theme-btn').title = state.themeMode==='auto' ? 'Modo oscuro (automático según el sol)' : 'Modo oscuro (manual)';
+}
+function toggleTheme(){
+  state.themeMode = 'manual';
+  state.darkMode = !state.darkMode;
+  applyTheme(); saveState();
+}
+async function applyAutoThemeIfNeeded(){
+  if(state.themeMode !== 'auto') return;
+  const shouldBeDark = await computeAutoDarkMode();
+  if(shouldBeDark !== state.darkMode){
+    state.darkMode = shouldBeDark;
+    applyTheme(); saveState();
+    playThemeTransitionSound(shouldBeDark);
+  }
+}
+
+/** Sonido suave y ambiental al pasar de claro a oscuro (o viceversa) automáticamente por el horario. */
+function playThemeTransitionSound(toDark){
+  const ctx = getAudioCtx();
+  if(!ctx) return;
+  try{
+    const now = ctx.currentTime;
+    // Atardecer: arpegio descendente y cálido. Amanecer: arpegio ascendente y suave.
+    const notes = toDark ? [783.99, 659.25, 523.25, 392.00] : [392.00, 523.25, 659.25, 783.99];
+    notes.forEach((freq,i)=> playTone(ctx, freq, now + i*0.22, 0.9, 0.055));
+  }catch(e){ /* si el audio falla, seguimos sin romper la app */ }
+}
+
+function toggleFocusMode(){
+  focusMode = !focusMode;
+  document.getElementById('app-root').classList.toggle('focus-mode', focusMode);
+  document.getElementById('focus-mode-btn').classList.toggle('on', focusMode);
+}
+
+function toggleSection(key){
+  collapsedSections[key] = !collapsedSections[key];
+  renderSidebar();
+}
+
+/* =====================================================================
+   LISTAS
+   ===================================================================== */
+function addList(){
+  const input = document.getElementById('new-list-name');
+  const name = input.value.trim();
+  if(!name) return;
+  const colors = ['#3b6bf0','#3f95a8','#dd9012','#8a5fd6','#2f9e5b','#c14f8f'];
+  const id = uid();
+  state.lists.push({id, name, color: colors[state.lists.length % colors.length]});
+  input.value = '';
+  state.currentView = {type:'list', id};
+  saveState(); render();
+}
+function deleteList(id, evt){
+  evt.stopPropagation();
+  const list = state.lists.find(l=>l.id===id);
+  if(!confirm('¿Eliminar la lista "'+list.name+'" y todas sus tareas?')) return;
+  state.lists = state.lists.filter(l=>l.id!==id);
+  state.tasks = state.tasks.filter(t=>t.listId!==id);
+  if(state.currentView.type==='list' && state.currentView.id===id){
+    state.currentView = {type:'list', id: state.lists[0] ? state.lists[0].id : null};
+  }
+  saveState(); render();
+}
+function selectView(type, id){ state.currentView = {type, id}; render(); }
+
+function onListDragStart(evt, listId){
+  draggedListId = listId;
+  evt.dataTransfer.effectAllowed = 'move';
+  evt.currentTarget.classList.add('dragging');
+}
+function onListDragOver(evt){ evt.preventDefault(); evt.currentTarget.classList.add('drag-over'); }
+function onListDragLeave(evt){ evt.currentTarget.classList.remove('drag-over'); }
+function onListDrop(evt, targetListId){
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('drag-over');
+  if(draggedTaskId){
+    const t = state.tasks.find(t=>t.id===draggedTaskId);
+    if(t){ t.listId = targetListId; saveState(); render(); showToast('Tarea movida de lista'); }
+    draggedTaskId = null;
+    return;
+  }
+  if(!draggedListId || draggedListId === targetListId) return;
+  const fromIdx = state.lists.findIndex(l=>l.id===draggedListId);
+  const toIdx = state.lists.findIndex(l=>l.id===targetListId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  const [moved] = state.lists.splice(fromIdx, 1);
+  state.lists.splice(toIdx, 0, moved);
+  draggedListId = null;
+  saveState(); render();
+}
+function onListDragEnd(evt){
+  evt.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.list-row.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  draggedListId = null;
+}
+
+/* =====================================================================
+   DETECCIÓN DE LENGUAJE NATURAL (chips inteligentes)
+   ===================================================================== */
+const WEEKDAYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+function normalize(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+function detectSmartChips(text){
+  const norm = normalize(text);
+  let clean = text;
+  let date = null, dateLabel = null;
+  let priority = null, prioLabel = null;
+  const today = new Date();
+
+  if(/\bayer\b/.test(norm)){
+    const d = new Date(today); d.setDate(d.getDate()-1);
+    date = toISO(d); dateLabel = 'ayer';
+    clean = clean.replace(/\bayer\b/i, '');
+  } else if(/\bhoy\b/.test(norm)){
+    date = toISO(today); dateLabel = 'hoy';
+    clean = clean.replace(/\bhoy\b/i, '');
+  } else if(/\bmanana\b/.test(norm)){
+    const d = new Date(today); d.setDate(d.getDate()+1);
+    date = toISO(d); dateLabel = 'mañana';
+    clean = clean.replace(/\bma[ñn]ana\b/i, '');
+  } else {
+    let matchedPastWeekday = false;
+    for(let i=0;i<WEEKDAYS.length;i++){
+      const wd = WEEKDAYS[i];
+      const re = new RegExp('\\b'+wd+'\\s+pasado\\b');
+      if(re.test(norm)){
+        const d = new Date(today);
+        let diff = (d.getDay() - i + 7) % 7;
+        if(diff === 0) diff = 7;
+        d.setDate(d.getDate()-diff);
+        date = toISO(d); dateLabel = wd+' pasado';
+        const origRe = new RegExp('\\b'+wd.replace('miercoles','mi[ée]rcoles').replace('sabado','s[áa]bado')+'\\s+pasado\\b','i');
+        clean = clean.replace(origRe, '');
+        matchedPastWeekday = true;
+        break;
+      }
+    }
+    if(!matchedPastWeekday){
+      for(let i=0;i<WEEKDAYS.length;i++){
+        const wd = WEEKDAYS[i];
+        const re = new RegExp('\\b'+wd+'\\b');
+        if(re.test(norm)){
+          const d = new Date(today);
+          let diff = (i - d.getDay() + 7) % 7;
+          if(diff === 0) diff = 7;
+          d.setDate(d.getDate()+diff);
+          date = toISO(d); dateLabel = wd;
+          const origRe = new RegExp('\\b'+wd.replace('miercoles','mi[ée]rcoles').replace('sabado','s[áa]bado')+'\\b','i');
+          clean = clean.replace(origRe, '');
+          break;
+        }
+      }
+    }
+  }
+
+  if(/\bno urgente\b/.test(norm) || /\bprioridad baja\b/.test(norm) || /\bbaja prioridad\b/.test(norm)){
+    priority = 'baja'; prioLabel = 'baja';
+    clean = clean.replace(/\bno urgente\b/i,'').replace(/\bprioridad baja\b/i,'').replace(/\bbaja prioridad\b/i,'');
+  } else if(/\bprioridad media\b/.test(norm) || /\bmedia prioridad\b/.test(norm)){
+    priority = 'media'; prioLabel = 'media';
+    clean = clean.replace(/\bprioridad media\b/i,'').replace(/\bmedia prioridad\b/i,'');
+  } else if(/\burgente\b/.test(norm) || /\bprioridad alta\b/.test(norm) || /\balta prioridad\b/.test(norm)){
+    priority = 'alta'; prioLabel = 'alta';
+    clean = clean.replace(/\burgente\b/i,'').replace(/\bprioridad alta\b/i,'').replace(/\balta prioridad\b/i,'');
+  }
+  clean = clean.replace(/\s{2,}/g,' ').replace(/^[\s:,-]+|[\s:,-]+$/g,'').trim();
+  return { clean, date, dateLabel, priority, prioLabel };
+}
+
+function setNewPrio(p){
+  newPrio = (newPrio === p) ? null : p;
+  manualPrioOverride = true;
+  document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
+  if(newPrio) document.querySelector('#new-prio .'+newPrio).classList.add('sel');
+}
+
+function onTitleInput(){
+  const input = document.getElementById('new-task-title');
+  const result = detectSmartChips(input.value);
+  const preview = document.getElementById('smart-chips-preview');
+  let chips = '';
+  if(result.dateLabel && !manualDateOverride) chips += `<span class="smart-chip">📅 ${result.dateLabel}</span>`;
+  if(result.prioLabel && !manualPrioOverride) chips += `<span class="smart-chip">🎯 prioridad ${result.prioLabel}</span>`;
+  let html = chips ? `<div class="smart-chips">${chips}</div>` : '';
+  const similar = findSimilarTask(result.clean || input.value);
+  if(similar) html += `<div class="similar-warning">⚠️ Ya existe una tarea parecida: "${escapeHtml(similar.title)}"</div>`;
+  preview.innerHTML = html;
+}
+
+/** Heurística local (sin IA) de similitud por superposición de palabras — instantánea y gratis. */
+function findSimilarTask(title, excludeId){
+  const words = new Set(normalize(title).split(/\s+/).filter(w=>w.length>3));
+  if(words.size===0) return null;
+  let best = null, bestScore = 0;
+  state.tasks.forEach(t=>{
+    if(t.id===excludeId || t.done) return;
+    const tWords = new Set(normalize(t.title).split(/\s+/).filter(w=>w.length>3));
+    if(tWords.size===0) return;
+    let overlap = 0;
+    words.forEach(w=>{ if(tWords.has(w)) overlap++; });
+    const score = overlap / Math.max(words.size, tWords.size);
+    if(score > bestScore){ bestScore = score; best = t; }
+  });
+  return bestScore >= 0.6 ? best : null;
+}
+
+/* =====================================================================
+   TAREAS: CRUD
+   ===================================================================== */
+/** Devuelve el id de la lista "Personal" (o la primera disponible); la crea si no existe ninguna. */
+function getOrCreatePersonalListId(){
+  let list = state.lists.find(l=> normalize(l.name)==='personal');
+  if(!list) list = state.lists[0];
+  if(!list){
+    list = { id: uid(), name:'Personal', color:'#3b6bf0' };
+    state.lists.push(list);
+  }
+  return list.id;
+}
+
+function addTask(){
+  const input = document.getElementById('new-task-title');
+  const raw = input.value.trim();
+  if(!raw) return;
+  const targetListId = (state.currentView.type === 'list' && state.currentView.id) ? state.currentView.id : getOrCreatePersonalListId();
+  const parsed = detectSmartChips(raw);
+  const manualDate = document.getElementById('new-task-date').value;
+  const finalDate = manualDateOverride ? (manualDate || null) : (parsed.date || manualDate || todayISO());
+  const finalPriority = manualPrioOverride ? newPrio : (parsed.priority || newPrio);
+  const finalTitle = (parsed.date || parsed.priority) ? parsed.clean : raw;
+  const maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===targetListId).map(t=>t.order||0));
+
+  state.tasks.push({
+    id: uid(), listId: targetListId, title: finalTitle || raw, done: false,
+    priority: finalPriority, tags: [], subtasks: [], notes: '', dueDate: finalDate,
+    createdAt: Date.now(), completedAt: null, order: maxOrder+1,
+    recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null
+  });
+
+  input.value = '';
+  document.getElementById('new-task-date').value = '';
+  newPrio = null; manualPrioOverride = false; manualDateOverride = false;
+  document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('smart-chips-preview').innerHTML = '';
+  saveState(); render(); renderReminderBanner();
+}
+
+function computeNextDueDate(task){
+  const base = task.dueDate ? new Date(task.dueDate+'T00:00:00') : new Date();
+  const r = task.recurrence;
+  if(!r) return null;
+  const d = new Date(base);
+  if(r.type === 'daily') d.setDate(d.getDate()+1);
+  else if(r.type === 'weekly') d.setDate(d.getDate()+7);
+  else if(r.type === 'monthly') d.setMonth(d.getMonth()+1);
+  else if(r.type === 'every_x') d.setDate(d.getDate()+(r.interval||1));
+  return toISO(d);
+}
+
+/* =====================================================================
+   SONIDO AL COMPLETAR (generado con Web Audio API, sin archivos externos)
+   ===================================================================== */
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    audioCtx = new AC();
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playTone(ctx, freq, startTime, duration, gainValue){
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(gainValue, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(startTime); osc.stop(startTime + duration);
+}
+/** Sonido de "completado" que evoluciona según cuántas tareas llevás: 1-5 simple, 6-10 acorde, 11+ fanfarria. */
+function playCompletionSound(totalCompleted){
+  const ctx = getAudioCtx();
+  if(!ctx) return;
+  try{
+    const now = ctx.currentTime;
+    let notes;
+    if(totalCompleted <= 5) notes = [659.25, 880.00];
+    else if(totalCompleted <= 10) notes = [523.25, 659.25, 783.99];
+    else notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq,i)=> playTone(ctx, freq, now + i*0.09, 0.22, 0.13));
+  }catch(e){ /* si el audio falla, seguimos sin romper la app */ }
+}
+
+function toggleTask(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  t.done = !t.done;
+  if(t.done){
+    t.completedAt = todayISO();
+    t.completedAtTime = Date.now();
+    state.totalCompletedEver = (state.totalCompletedEver||0) + 1;
+    if(t.recurrence){
+      const nextDate = computeNextDueDate(t);
+      state.tasks.push({
+        id: uid(), listId: t.listId, title: t.title, done:false, priority: t.priority,
+        tags: [...t.tags], subtasks: t.subtasks.map(s=>({id:uid(), title:s.title, done:false})),
+        notes: t.notes, dueDate: nextDate, createdAt: Date.now(), completedAt: null, completedAtTime: null,
+        order: t.order, recurrence: t.recurrence, reminderDaysBefore: t.reminderDaysBefore,
+        reminders: [...(t.reminders||[])], estimatedMinutes: t.estimatedMinutes||null
+      });
+    }
+    const milestone = state.totalCompletedEver % 20 === 0;
+    playCompletionSound(state.totalCompletedEver);
+    saveState(); render(); renderReminderBanner();
+    if(milestone) showCelebration(state.totalCompletedEver);
+    return;
+  } else {
+    t.completedAt = null;
+    t.completedAtTime = null;
+  }
+  saveState(); render(); renderReminderBanner();
+}
+
+function deleteTask(id){
+  const idx = state.tasks.findIndex(t=>t.id===id);
+  if(idx === -1) return;
+  lastDeleted = { type:'task', data: state.tasks[idx] };
+  const el = document.querySelector(`[data-task-id="${id}"]`);
+  if(el) el.classList.add('removing');
+  setTimeout(()=>{
+    state.tasks = state.tasks.filter(t=>t.id!==id);
+    saveState(); render();
+  }, el ? 220 : 0);
+  showToast('Tarea eliminada', undoDelete);
+}
+function undoDelete(){
+  if(!lastDeleted) return;
+  if(lastDeleted.type === 'task') state.tasks.push(lastDeleted.data);
+  lastDeleted = null;
+  saveState(); render();
+  hideToast();
+}
+function duplicateTask(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  state.tasks.push({ ...t, id: uid(), done:false, completedAt:null, createdAt: Date.now(),
+    subtasks: t.subtasks.map(s=>({id:uid(), title:s.title, done:false})), tags:[...t.tags], reminders:[...(t.reminders||[])] });
+  saveState(); render(); showToast('Tarea duplicada');
+}
+
+function cyclePriority(id){
+  const t = state.tasks.find(t=>t.id===id);
+  const order = [null,'alta','media','baja'];
+  const idx = order.indexOf(t.priority);
+  t.priority = order[(idx+1)%order.length];
+  saveState(); render();
+}
+function setPriority(id, p){
+  const t = state.tasks.find(t=>t.id===id);
+  if(t){ t.priority = p; saveState(); render(); }
+}
+
+function toggleExpand(id){ expanded[id] = !expanded[id]; render(); }
+
+function addSubtask(taskId){
+  const input = document.getElementById('sub-input-'+taskId);
+  const title = input.value.trim();
+  if(!title) return;
+  const t = state.tasks.find(t=>t.id===taskId);
+  t.subtasks.push({id:uid(), title, done:false});
+  input.value='';
+  saveState(); render();
+}
+function toggleSubtask(taskId, subId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  const s = t.subtasks.find(s=>s.id===subId);
+  s.done = !s.done;
+  saveState(); render();
+}
+function deleteSubtask(taskId, subId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  t.subtasks = t.subtasks.filter(s=>s.id!==subId);
+  saveState(); render();
+}
+function addTag(taskId){
+  const input = document.getElementById('tag-input-'+taskId);
+  const tag = input.value.trim();
+  if(!tag) return;
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t.tags.includes(tag)) t.tags.push(tag);
+  input.value='';
+  saveState(); render();
+}
+function removeTag(taskId, tag){
+  const t = state.tasks.find(t=>t.id===taskId);
+  t.tags = t.tags.filter(x=>x!==tag);
+  saveState(); render();
+}
+
+/* drag & drop de tareas: reordenar dentro de una lista, o mover a otra lista/columna */
+function onTaskDragStart(evt, taskId){
+  draggedTaskId = taskId;
+  evt.dataTransfer.effectAllowed = 'move';
+  evt.currentTarget.classList.add('dragging');
+}
+function onTaskDragOver(evt, overTaskId){
+  evt.preventDefault();
+  if(draggedTaskId === overTaskId) return;
+  evt.currentTarget.classList.add('drag-over-task');
+}
+function onTaskDragLeaveCard(evt){ evt.currentTarget.classList.remove('drag-over-task'); }
+function onTaskDrop(evt, targetTaskId){
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('drag-over-task');
+  if(!draggedTaskId || draggedTaskId === targetTaskId) return;
+  const a = state.tasks.find(t=>t.id===draggedTaskId);
+  const b = state.tasks.find(t=>t.id===targetTaskId);
+  if(!a || !b) return;
+  const tmp = a.order; a.order = b.order; b.order = tmp;
+  if(a.listId !== b.listId) a.listId = b.listId;
+  draggedTaskId = null;
+  saveState(); render();
+}
+function onTaskDragEnd(evt){
+  evt.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over-task').forEach(el=>el.classList.remove('drag-over-task'));
+  draggedTaskId = null;
+}
+
+let draggedSubtask = null;
+function onSubDragStart(evt, taskId, subId){ draggedSubtask = {taskId, subId}; evt.stopPropagation(); }
+function onSubDrop(evt, taskId, targetSubId){
+  evt.preventDefault(); evt.stopPropagation();
+  if(!draggedSubtask || draggedSubtask.taskId !== taskId) return;
+  const t = state.tasks.find(t=>t.id===taskId);
+  const fromIdx = t.subtasks.findIndex(s=>s.id===draggedSubtask.subId);
+  const toIdx = t.subtasks.findIndex(s=>s.id===targetSubId);
+  if(fromIdx===-1||toIdx===-1) return;
+  const [moved] = t.subtasks.splice(fromIdx,1);
+  t.subtasks.splice(toIdx,0,moved);
+  draggedSubtask = null;
+  saveState(); render();
+}
+
+/* =====================================================================
+   SELECCIÓN MÚLTIPLE Y ACCIONES MASIVAS
+   ===================================================================== */
+/* =====================================================================
+   AYUDA / CÓMO FUNCIONA
+   ===================================================================== */
+function openHelp(){
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>Cómo funciona</h2>
+        <div class="field-label" style="margin-top:0;">Agregar tareas más rápido</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text-2);">
+          Escribí frases como <strong>"Llamar al cliente mañana urgente"</strong> — la app detecta sola la fecha
+          y la prioridad, y te muestra chips antes de agregar.
+        </div>
+        <div class="field-label">Vistas</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
+          <strong>Mi día</strong>: tareas de hoy y vencidas · <strong>Próximos</strong>: fechas futuras ·
+          <strong>Agenda</strong>: vencidas + próximas por día · <strong>Semana</strong> y <strong>Calendario</strong>: vista temporal con drag&drop ·
+          <strong>Kanban</strong>: columnas por prioridad, arrastrá tarjetas entre ellas.
+        </div>
+        <div class="field-label">Organización</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
+          Arrastrá listas y tareas para reordenarlas o moverlas entre listas. Click derecho sobre una tarea
+          abre un menú rápido. El botón ☑️ activa selección múltiple para acciones masivas.
+        </div>
+        <div class="field-label">IA</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
+          Dentro de cada tarea (✎ Editar) hay acciones de IA: dividir en subtareas, sugerir prioridad,
+          estimar tiempo, sugerir fecha límite o etiquetas, y resumir notas.
+        </div>
+        <div class="field-label">Productividad</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
+          ⏱️ Pomodoro con foco/descanso · 🎯 Modo concentración (oculta distracciones) · recordatorios configurables por tarea.
+        </div>
+        <div class="field-label">Modo oscuro automático</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
+          Por defecto, la app se pone oscura sola después del atardecer y clara después del amanecer, calculado según tu ubicación
+          (o Buenos Aires si no la compartís). Si tocás el botón 🌙/☀️ manualmente, queda fijo en esa elección y deja de cambiar solo.
+        </div>
+        <div class="field-label">Atajos de teclado</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
+          <strong>/</strong> buscar · <strong>n</strong> nueva tarea · <strong>f</strong> modo foco · <strong>Esc</strong> cerrar ventanas
+        </div>
+        <div class="modal-actions">
+          <div></div>
+          <div class="right"><button class="btn primary" onclick="closeModal()">Entendido</button></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleSelectMode(){
+  selectMode = !selectMode;
+  if(!selectMode) selectedIds.clear();
+  document.getElementById('select-mode-btn').classList.toggle('on', selectMode);
+  render();
+}
+function toggleSelectTask(id, evt){
+  if(evt) evt.stopPropagation();
+  if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+  render();
+}
+function bulkComplete(){
+  selectedIds.forEach(id=>{ const t = state.tasks.find(t=>t.id===id); if(t && !t.done){ t.done=true; t.completedAt=todayISO(); state.totalCompletedEver++; } });
+  selectedIds.clear(); saveState(); render();
+}
+function bulkDelete(){
+  if(!confirm(`¿Eliminar ${selectedIds.size} tarea(s)?`)) return;
+  state.tasks = state.tasks.filter(t=>!selectedIds.has(t.id));
+  selectedIds.clear(); saveState(); render();
+}
+function bulkMove(){
+  const names = state.lists.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
+  const choice = prompt(`¿A qué lista mover las ${selectedIds.size} tareas?\n${names}`);
+  const idx = parseInt(choice)-1;
+  if(isNaN(idx) || !state.lists[idx]) return;
+  selectedIds.forEach(id=>{ const t = state.tasks.find(t=>t.id===id); if(t) t.listId = state.lists[idx].id; });
+  selectedIds.clear(); saveState(); render();
+}
+function renderBulkBar(){
+  const container = document.getElementById('bulk-bar-container');
+  if(!selectMode || selectedIds.size===0){ container.innerHTML=''; return; }
+  container.innerHTML = `<div class="bulk-bar">
+    <span>${selectedIds.size} seleccionada${selectedIds.size>1?'s':''}</span>
+    <div class="bulk-actions">
+      <button onclick="bulkComplete()">Completar</button>
+      <button onclick="bulkMove()">Mover</button>
+      <button onclick="bulkDelete()">Eliminar</button>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   MENÚ CONTEXTUAL
+   ===================================================================== */
+function openContextMenu(evt, taskId){
+  evt.preventDefault();
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  const x = Math.min(evt.clientX, window.innerWidth-190);
+  const y = Math.min(evt.clientY, window.innerHeight-220);
+  document.getElementById('context-menu-container').innerHTML = `
+    <div class="context-menu" style="left:${x}px;top:${y}px;" onclick="event.stopPropagation()">
+      <button onclick="openEditModal('${t.id}');closeContextMenu()">✎ Editar</button>
+      <button onclick="duplicateTask('${t.id}');closeContextMenu()">⧉ Duplicar</button>
+      <hr>
+      <button onclick="setPriority('${t.id}','alta');closeContextMenu()">🔴 Prioridad alta</button>
+      <button onclick="setPriority('${t.id}','media');closeContextMenu()">🟠 Prioridad media</button>
+      <button onclick="setPriority('${t.id}','baja');closeContextMenu()">🔵 Prioridad baja</button>
+      <hr>
+      <button class="danger" onclick="deleteTask('${t.id}');closeContextMenu()">✕ Eliminar</button>
+    </div>`;
+  setTimeout(()=>document.addEventListener('click', closeContextMenu, {once:true}), 0);
+}
+function closeContextMenu(){ document.getElementById('context-menu-container').innerHTML=''; }
+
+/* =====================================================================
+   FILTROS Y VISTAS
+   ===================================================================== */
+function isOverdue(t){ return t.dueDate && t.dueDate < todayISO() && !t.done; }
+function isThisWeek(dateStr){
+  if(!dateStr) return false;
+  const d = new Date(dateStr+'T00:00:00');
+  const now = new Date();
+  const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return d >= new Date(start.toDateString()) && d <= new Date(end.toDateString());
+}
+
+function getVisibleTasks(){
+  const v = state.currentView;
+  const t0 = todayISO();
+  if(v.type === 'today') return state.tasks.filter(t=> t.dueDate===t0 || isOverdue(t));
+  if(v.type === 'tomorrow') return state.tasks.filter(t=> t.dueDate===tomorrowISO());
+  if(v.type === 'important') return state.tasks.filter(t=> t.priority === 'alta');
+  if(v.type === 'filter'){
+    if(v.id === 'overdue') return state.tasks.filter(isOverdue);
+    if(v.id === 'week') return state.tasks.filter(t=>!t.done && isThisWeek(t.dueDate));
+    if(v.id === 'nodate') return state.tasks.filter(t=>!t.done && !t.dueDate);
+    if(v.id === 'pending') return state.tasks.filter(t=>!t.done);
+    if(v.id === 'completed') return state.tasks.filter(t=>t.done);
+  }
+  if(v.type === 'list') return state.tasks.filter(t=> t.listId === v.id);
+  return [];
+}
+
+/* =====================================================================
+   BÚSQUEDA
+   ===================================================================== */
+function openSearch(){
+  document.getElementById('search-container').innerHTML = `
+    <div class="search-overlay" onclick="closeSearchOverlay(event)">
+      <div class="search-box" onclick="event.stopPropagation()">
+        <input type="text" id="search-input" placeholder="Buscar por título, etiqueta, lista o fecha (aaaa-mm-dd)" oninput="runSearch()">
+        <div id="search-results"></div>
+      </div>
+    </div>`;
+  setTimeout(()=>{ const el = document.getElementById('search-input'); if(el) el.focus(); }, 30);
+}
+function closeSearchOverlay(evt){ if(evt) evt.stopPropagation(); document.getElementById('search-container').innerHTML=''; }
+function runSearch(){
+  const q = normalize(document.getElementById('search-input').value.trim());
+  const results = document.getElementById('search-results');
+  if(!q){ results.innerHTML=''; return; }
+  const matches = state.tasks.filter(t=>{
+    const list = state.lists.find(l=>l.id===t.listId);
+    return normalize(t.title).includes(q)
+      || t.tags.some(tag=>normalize(tag).includes(q))
+      || (list && normalize(list.name).includes(q))
+      || (t.dueDate && t.dueDate.includes(q))
+      || normalize(t.notes||'').includes(q);
+  }).slice(0,30);
+  if(matches.length===0){ results.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
+  results.innerHTML = matches.map(t=>{
+    const list = state.lists.find(l=>l.id===t.listId);
+    return `<div class="search-result" onclick="goToTaskFromSearch('${t.id}')">
+      <div class="r-title">${escapeHtml(t.title)}</div>
+      <div class="r-meta">${list?escapeHtml(list.name):''} ${t.dueDate?'· '+t.dueDate:''} ${t.tags.length?'· '+t.tags.map(escapeHtml).join(', '):''}</div>
+    </div>`;
+  }).join('');
+}
+function goToTaskFromSearch(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  state.currentView = {type:'list', id: t.listId};
+  closeSearchOverlay();
+  render();
+  openEditModal(taskId);
+}
+
+/* =====================================================================
+   MODAL DE EDICIÓN
+   ===================================================================== */
+function openEditModal(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  const listOptions = state.lists.map(l=>`<option value="${l.id}" ${l.id===t.listId?'selected':''}>${escapeHtml(l.name)}</option>`).join('');
+  const r = t.recurrence;
+  const reminders = t.reminders && t.reminders.length ? t.reminders : (t.reminderDaysBefore!==null && t.reminderDaysBefore!==undefined ? [t.reminderDaysBefore] : []);
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>Editar tarea</h2>
+        <div class="field-label">Título</div>
+        <input type="text" id="edit-title" value="${escapeHtml(t.title)}">
+        <div class="modal-row2">
+          <div>
+            <div class="field-label">Lista</div>
+            <select id="edit-list">${listOptions}</select>
+          </div>
+          <div>
+            <div class="field-label">Fecha</div>
+            <input type="date" id="edit-date" value="${t.dueDate||''}">
+          </div>
+        </div>
+        <div class="field-label">Prioridad</div>
+        <select id="edit-priority">
+          <option value="" ${!t.priority?'selected':''}>Sin prioridad</option>
+          <option value="alta" ${t.priority==='alta'?'selected':''}>Alta</option>
+          <option value="media" ${t.priority==='media'?'selected':''}>Media</option>
+          <option value="baja" ${t.priority==='baja'?'selected':''}>Baja</option>
+        </select>
+        <div class="field-label">Tiempo estimado (minutos)</div>
+        <input type="number" id="edit-estimate" min="0" value="${t.estimatedMinutes||''}" placeholder="Ej: 30">
+        <div class="field-label">Etiquetas</div>
+        <div id="edit-tags-list">${t.tags.map(tag=>`<span class="tag">${escapeHtml(tag)} <span style="cursor:pointer" onclick="removeTag('${t.id}','${tag}');openEditModal('${t.id}')">✕</span></span>`).join(' ')}</div>
+        <div class="add-tag-row" style="margin-top:8px;">
+          <input type="text" id="edit-new-tag" placeholder="Nueva etiqueta">
+          <button onclick="addTag('${t.id}');openEditModal('${t.id}')">Agregar</button>
+        </div>
+        <div class="field-label">Notas</div>
+        <textarea id="edit-notes" placeholder="Información adicional...">${escapeHtml(t.notes)}</textarea>
+        <div class="field-label">Repetir</div>
+        <select id="edit-recurrence" onchange="onRecurrenceChange()">
+          <option value="" ${!r?'selected':''}>No se repite</option>
+          <option value="daily" ${r&&r.type==='daily'?'selected':''}>Diariamente</option>
+          <option value="weekly" ${r&&r.type==='weekly'?'selected':''}>Semanalmente</option>
+          <option value="monthly" ${r&&r.type==='monthly'?'selected':''}>Mensualmente</option>
+          <option value="every_x" ${r&&r.type==='every_x'?'selected':''}>Cada X días</option>
+        </select>
+        <div class="recur-extra" id="recur-extra-wrap" style="display:${r&&r.type==='every_x'?'flex':'none'}">
+          <span style="font-size:12px;color:var(--text-muted)">Cada</span>
+          <input type="number" id="edit-recur-interval" min="1" style="width:60px" value="${r&&r.interval?r.interval:2}">
+          <span style="font-size:12px;color:var(--text-muted)">días</span>
+        </div>
+        <div class="field-label">Recordatorios (días antes de vencer)</div>
+        <div id="edit-reminders-list">
+          ${reminders.map((d,i)=>`<div class="reminder-item" data-idx="${i}"><input type="number" min="0" value="${d}" style="width:60px"><span>días antes</span><button class="icon-btn" onclick="removeReminderRow(${i})">✕</button></div>`).join('')}
+        </div>
+        <button class="btn" style="margin-top:8px;font-size:12px;" onclick="addReminderRow()">+ Agregar recordatorio</button>
+        <button class="btn" style="margin-top:8px;font-size:12px;margin-left:6px;" onclick="suggestSmartReminder('${t.id}')">✨ Recordatorio inteligente</button>
+
+        <div class="ai-panel">
+          <div class="field-label" style="margin-top:0;">Acciones con IA</div>
+          <div class="ai-actions-grid">
+            <button class="btn" onclick="aiAction('${t.id}','subtasks')">🧩 Dividir en subtareas</button>
+            <button class="btn" onclick="aiAction('${t.id}','priority')">🎯 Sugerir prioridad</button>
+            <button class="btn" onclick="aiAction('${t.id}','estimate')">⏱️ Estimar tiempo</button>
+            <button class="btn" onclick="aiAction('${t.id}','duedate')">📅 Sugerir fecha límite</button>
+            <button class="btn" onclick="aiAction('${t.id}','tags')">🏷️ Sugerir etiquetas</button>
+            <button class="btn" onclick="aiAction('${t.id}','summarize')">📝 Resumir notas</button>
+          </div>
+          <div id="ai-result-container"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn danger" onclick="deleteTask('${t.id}');closeModal()">Eliminar</button>
+          <div class="right">
+            <button class="btn" onclick="closeModal()">Cancelar</button>
+            <button class="btn primary" onclick="saveEditModal('${t.id}')">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+function onRecurrenceChange(){
+  const val = document.getElementById('edit-recurrence').value;
+  document.getElementById('recur-extra-wrap').style.display = val==='every_x' ? 'flex' : 'none';
+}
+function addReminderRow(){
+  const list = document.getElementById('edit-reminders-list');
+  const idx = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'reminder-item'; row.dataset.idx = idx;
+  row.innerHTML = `<input type="number" min="0" value="1" style="width:60px"><span>días antes</span><button class="icon-btn" onclick="removeReminderRow(${idx})">✕</button>`;
+  list.appendChild(row);
+}
+function removeReminderRow(idx){
+  const row = document.querySelector(`#edit-reminders-list [data-idx="${idx}"]`);
+  if(row) row.remove();
+}
+function suggestSmartReminder(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  const suggestion = t.priority==='alta' ? [1,0] : t.priority==='media' ? [1] : [];
+  if(suggestion.length===0){ alert('Sin prioridad alta/media no hay una sugerencia clara. Agregalo manualmente si querés.'); return; }
+  const list = document.getElementById('edit-reminders-list');
+  list.innerHTML = suggestion.map((d,i)=>`<div class="reminder-item" data-idx="${i}"><input type="number" min="0" value="${d}" style="width:60px"><span>días antes</span><button class="icon-btn" onclick="removeReminderRow(${i})">✕</button></div>`).join('');
+}
+
+function closeModal(evt){ if(evt) evt.stopPropagation(); document.getElementById('modal-container').innerHTML=''; }
+function saveEditModal(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  t.title = document.getElementById('edit-title').value.trim() || t.title;
+  t.listId = document.getElementById('edit-list').value;
+  t.dueDate = document.getElementById('edit-date').value || null;
+  t.priority = document.getElementById('edit-priority').value || null;
+  t.notes = document.getElementById('edit-notes').value;
+  t.estimatedMinutes = parseInt(document.getElementById('edit-estimate').value) || null;
+  const recType = document.getElementById('edit-recurrence').value;
+  if(!recType) t.recurrence = null;
+  else if(recType==='every_x') t.recurrence = {type:'every_x', interval: parseInt(document.getElementById('edit-recur-interval').value)||1};
+  else t.recurrence = {type: recType};
+  const reminderInputs = document.querySelectorAll('#edit-reminders-list input[type=number]');
+  t.reminders = Array.from(reminderInputs).map(i=>parseInt(i.value)||0);
+  t.reminderDaysBefore = t.reminders.length ? t.reminders[0] : null;
+  closeModal();
+  saveState(); render(); renderReminderBanner();
+}
+
+/* =====================================================================
+   ACCIONES DE IA (panel unificado)
+   ===================================================================== */
+async function callClaude(prompt, maxTokens){
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens: maxTokens||300, messages:[{role:'user', content: prompt}] })
+  });
+  const data = await resp.json();
+  return (data.content||[]).map(c=>c.text||'').join('');
+}
+function cleanJson(text){ return text.replace(/```json|```/g,'').trim(); }
+
+/** Igual que callClaude pero permite adjuntar una imagen (para leer fotos de notas/listas). */
+async function callClaudeWithImage(prompt, base64Data, mediaType, maxTokens){
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6', max_tokens: maxTokens||500,
+      messages:[{ role:'user', content:[
+        { type:'image', source:{ type:'base64', media_type: mediaType, data: base64Data } },
+        { type:'text', text: prompt }
+      ]}]
+    })
+  });
+  const data = await resp.json();
+  return (data.content||[]).map(c=>c.text||'').join('');
+}
+
+function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const TASK_EXTRACTION_INSTRUCTIONS = `Extraé una lista de tareas reales a partir de este contenido. El texto puede estar
+desordenado, con mayúsculas mezcladas, palabras repetidas, o frases sueltas que no son tareas (como "por favor").
+Uní fragmentos que claramente son la misma tarea en una sola (por ejemplo "pagar", "PAGAR", "pagar hoy" y una
+aclaración entre paréntesis son probablemente UNA sola tarea de pagar algo, no varias). Ignorá palabras sueltas
+que no aporten una tarea concreta. Hoy es ${todayISO()}; si el texto menciona "hoy", "mañana" o un día de la
+semana, convertilo a fecha AAAA-MM-DD. Si detectás urgencia (ej. "urgente", mayúsculas, "por favor"), marcá prioridad alta.
+Respondé ÚNICAMENTE con un array JSON de objetos con esta forma exacta, sin texto adicional ni markdown:
+[{"title":"...", "dueDate":"AAAA-MM-DD o null", "priority":"alta|media|baja|null"}]`;
+
+async function analyzeImportWithAI(){
+  const btn = document.getElementById('ai-import-btn');
+  const preview = document.getElementById('ai-import-preview');
+  const text = document.getElementById('ai-import-text').value.trim();
+  const fileInput = document.getElementById('ai-import-image');
+  const file = fileInput.files[0];
+  if(!text && !file){ preview.innerHTML = '<div class="ai-result-box">Pegá un texto o subí una foto primero.</div>'; return; }
+
+  btn.innerText = 'Analizando...'; btn.disabled = true;
+  preview.innerHTML = '<div class="ai-result-box">Leyendo y organizando las tareas...</div>';
+  try{
+    let raw;
+    if(file){
+      const base64 = await fileToBase64(file);
+      raw = await callClaudeWithImage(TASK_EXTRACTION_INSTRUCTIONS + (text ? `\n\nTexto adicional de contexto: "${text}"` : ''), base64, file.type);
+    } else {
+      raw = await callClaude(`${TASK_EXTRACTION_INSTRUCTIONS}\n\nTexto:\n"""${text}"""`, 500);
+    }
+    const items = JSON.parse(cleanJson(raw));
+    if(!Array.isArray(items) || items.length===0){
+      preview.innerHTML = '<div class="ai-result-box">No se detectaron tareas claras. Probá con más contexto.</div>';
+    } else {
+      window.__aiImportItems = items;
+      preview.innerHTML = `
+        <div class="ai-result-box">
+          ${items.map((it,i)=>`
+            <div class="ai-sub-item">
+              <input type="checkbox" id="ai-import-item-${i}" checked>
+              <label for="ai-import-item-${i}">${escapeHtml(it.title)}
+                ${it.dueDate ? `<span class="tag" style="margin-left:4px;">📅 ${escapeHtml(it.dueDate)}</span>` : ''}
+                ${it.priority ? `<span class="tag" style="margin-left:4px;">${escapeHtml(it.priority)}</span>` : ''}
+              </label>
+            </div>`).join('')}
+          <button class="btn primary" style="margin-top:10px;font-size:12px;" onclick="acceptAIImportItems()">Agregar seleccionadas</button>
+        </div>`;
+    }
+  }catch(e){
+    preview.innerHTML = '<div class="ai-result-box">No se pudo analizar. Probá de nuevo o cargalas manualmente abajo.</div>';
+  }
+  btn.innerText = 'Analizar con IA'; btn.disabled = false;
+}
+
+function acceptAIImportItems(){
+  const items = window.__aiImportItems || [];
+  const listId = document.getElementById('import-list').value;
+  if(!listId){ alert('Elegí una lista destino primero.'); return; }
+  let maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===listId).map(t=>t.order||0));
+  let added = 0;
+  items.forEach((it,i)=>{
+    const cb = document.getElementById('ai-import-item-'+i);
+    if(!cb || !cb.checked) return;
+    maxOrder++;
+    state.tasks.push({ id: uid(), listId, title: it.title, done:false, priority: it.priority||null, tags:[], subtasks:[],
+      notes:'', dueDate: it.dueDate||null, createdAt:Date.now(), completedAt:null, order:maxOrder, recurrence:null,
+      reminderDaysBefore:null, reminders:[] });
+    added++;
+  });
+  window.__aiImportItems = null;
+  closeModal();
+  state.currentView = {type:'list', id:listId};
+  saveState(); render();
+  showToast(`Se agregaron ${added} tarea${added===1?'':'s'} detectadas por IA`);
+}
+
+async function aiAction(taskId, action){
+  const t = state.tasks.find(t=>t.id===taskId);
+  const box = document.getElementById('ai-result-container');
+  if(!box) return;
+  box.innerHTML = '<div class="ai-result-box">Pensando...</div>';
+  try{
+    if(action==='subtasks'){
+      const text = await callClaude(`Tarea: "${t.title}". Sugerí entre 3 y 6 subtareas cortas y concretas en español. Respondé ÚNICAMENTE con un array JSON de strings. Ejemplo: ["Subtarea 1","Subtarea 2"]`);
+      const suggestions = JSON.parse(cleanJson(text));
+      box.innerHTML = `<div class="ai-result-box">${suggestions.map((s,i)=>`<div class="ai-sub-item"><input type="checkbox" id="ai-sub-${i}" checked><label for="ai-sub-${i}">${escapeHtml(s)}</label></div>`).join('')}
+        <button class="btn" style="margin-top:8px" onclick='acceptAISubtasks("${taskId}", ${JSON.stringify(suggestions).replace(/"/g,'&quot;')})'>Agregar seleccionadas</button></div>`;
+    } else if(action==='priority'){
+      const text = await callClaude(`Tarea: "${t.title}". Notas: "${t.notes||''}". Sugerí una prioridad entre alta, media o baja. Respondé ÚNICAMENTE con la palabra (alta, media o baja).`, 10);
+      const p = normalize(text).match(/alta|media|baja/);
+      const val = p ? p[0] : null;
+      box.innerHTML = `<div class="ai-result-box">Prioridad sugerida: <strong>${val||'sin definir'}</strong>
+        ${val ? `<button class="btn" style="margin-left:8px" onclick="document.getElementById('edit-priority').value='${val}'">Aplicar</button>` : ''}</div>`;
+    } else if(action==='estimate'){
+      const text = await callClaude(`Tarea: "${t.title}". Notas: "${t.notes||''}". Estimá cuántos minutos puede llevar completarla. Respondé ÚNICAMENTE con un número entero de minutos.`, 10);
+      const mins = parseInt((text.match(/\d+/)||[])[0]) || null;
+      box.innerHTML = `<div class="ai-result-box">Tiempo estimado: <strong>${mins ? mins+' minutos' : 'no se pudo estimar'}</strong>
+        ${mins ? `<button class="btn" style="margin-left:8px" onclick="document.getElementById('edit-estimate').value=${mins}">Aplicar</button>` : ''}</div>`;
+    } else if(action==='duedate'){
+      const text = await callClaude(`Hoy es ${todayISO()}. Tarea: "${t.title}". Sugerí una fecha límite razonable en formato AAAA-MM-DD. Respondé ÚNICAMENTE con la fecha.`, 15);
+      const d = (text.match(/\d{4}-\d{2}-\d{2}/)||[])[0] || null;
+      box.innerHTML = `<div class="ai-result-box">Fecha sugerida: <strong>${d||'no se pudo sugerir'}</strong>
+        ${d ? `<button class="btn" style="margin-left:8px" onclick="document.getElementById('edit-date').value='${d}'">Aplicar</button>` : ''}</div>`;
+    } else if(action==='tags'){
+      const text = await callClaude(`Tarea: "${t.title}". Sugerí entre 2 y 4 etiquetas cortas (una palabra cada una) en español. Respondé ÚNICAMENTE con un array JSON de strings.`, 60);
+      const tags = JSON.parse(cleanJson(text));
+      box.innerHTML = `<div class="ai-result-box">${tags.map(tag=>`<span class="tag" style="cursor:pointer" onclick='quickAddTag("${taskId}","${tag}")'>${escapeHtml(tag)}</span>`).join(' ')}
+        <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">Tocá una etiqueta para agregarla.</div></div>`;
+    } else if(action==='summarize'){
+      if(!t.notes){ box.innerHTML = '<div class="ai-result-box">Esta tarea no tiene notas para resumir.</div>'; return; }
+      const text = await callClaude(`Resumí estas notas en 1-2 oraciones cortas en español: "${t.notes}"`, 100);
+      box.innerHTML = `<div class="ai-result-box">${escapeHtml(text.trim())}</div>`;
+    }
+  }catch(e){
+    box.innerHTML = '<div class="ai-result-box">No se pudo completar la acción. Probá de nuevo.</div>';
+  }
+}
+function quickAddTag(taskId, tag){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(t && !t.tags.includes(tag)) t.tags.push(tag);
+  saveState();
+  openEditModal(taskId);
+}
+function acceptAISubtasks(taskId, suggestions){
+  const t = state.tasks.find(t=>t.id===taskId);
+  suggestions.forEach((s,i)=>{
+    const cb = document.getElementById('ai-sub-'+i);
+    if(cb && cb.checked) t.subtasks.push({id:uid(), title:s, done:false});
+  });
+  saveState();
+  openEditModal(taskId);
+}
+
+/* =====================================================================
+   RECORDATORIOS
+   ===================================================================== */
+function renderReminderBanner(){
+  const t0 = new Date();
+  const due = state.tasks.filter(t=>{
+    if(t.done || !t.dueDate) return false;
+    const reminders = (t.reminders && t.reminders.length) ? t.reminders : (t.reminderDaysBefore!==null ? [t.reminderDaysBefore] : []);
+    if(reminders.length===0) return false;
+    const dueDate = new Date(t.dueDate+'T00:00:00');
+    return reminders.some(days=>{
+      const triggerDate = new Date(dueDate); triggerDate.setDate(triggerDate.getDate()-days);
+      return toISO(t0) >= toISO(triggerDate) && toISO(t0) <= t.dueDate;
+    });
+  });
+  const container = document.getElementById('reminder-banner-container');
+  if(due.length===0){ container.innerHTML=''; return; }
+  container.innerHTML = `<div class="reminder-banner">
+    <span>⏰ Tenés ${due.length} recordatorio${due.length>1?'s':''}: ${due.slice(0,3).map(t=>escapeHtml(t.title)).join(', ')}${due.length>3?'...':''}</span>
+    <button onclick="document.getElementById('reminder-banner-container').innerHTML=''">Ocultar</button>
+  </div>`;
+}
+
+/* =====================================================================
+   TOAST / DESHACER
+   ===================================================================== */
+function showToast(msg, onUndo){
+  clearTimeout(toastTimer);
+  document.getElementById('toast-container').innerHTML = `
+    <div class="toast">
+      <span>${escapeHtml(msg)}</span>
+      ${onUndo ? `<button onclick="(${onUndo.name})()">Deshacer</button>` : ''}
+    </div>`;
+  toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast(){ document.getElementById('toast-container').innerHTML=''; }
+
+/* =====================================================================
+   PANEL DE SUGERENCIAS (ayer / agregado recientemente)
+   ===================================================================== */
+function toggleSuggestions(){
+  suggestionsOpen = !suggestionsOpen;
+  document.getElementById('suggestions-panel').classList.toggle('open', suggestionsOpen);
+  if(suggestionsOpen) renderSuggestions();
+}
+function yesterdayISO(){ const d = new Date(); d.setDate(d.getDate()-1); return toISO(d); }
+function getSuggestions(){
+  const yISO = yesterdayISO(); const t0 = todayISO();
+  const yesterdayDone = state.tasks.filter(t=> t.done && t.completedAt === yISO).slice(0,6);
+  const recent = state.tasks.filter(t=> !t.done && t.dueDate !== t0).sort((a,b)=> b.createdAt - a.createdAt).slice(0,8);
+  return { yesterdayDone, recent };
+}
+function renderSuggestions(){
+  const { yesterdayDone, recent } = getSuggestions();
+  const body = document.getElementById('suggestions-body');
+  const listName = id => { const l = state.lists.find(l=>l.id===id); return l ? l.name : ''; };
+  const yHtml = yesterdayDone.length ? `
+    <div class="suggestion-group-label">Ayer</div>
+    ${yesterdayDone.map(t=>`<div class="suggestion-row"><div><div class="s-title">${escapeHtml(t.title)}</div><div class="s-sub">${escapeHtml(listName(t.listId))}</div></div><button class="suggestion-add" onclick="repeatTask('${t.id}')" title="Agregar de nuevo a Mi día">+</button></div>`).join('')}` : '';
+  const rHtml = recent.length ? `
+    <div class="suggestion-group-label">Agregado recientemente</div>
+    ${recent.map(t=>`<div class="suggestion-row"><div><div class="s-title">${escapeHtml(t.title)}</div><div class="s-sub">${escapeHtml(listName(t.listId))}</div></div><button class="suggestion-add" onclick="addToToday('${t.id}')" title="Agregar a Mi día">+</button></div>`).join('')}` : '';
+  body.innerHTML = (yHtml + rHtml) || '<div class="empty">No hay sugerencias por ahora.</div>';
+}
+function repeatTask(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  state.tasks.push({ id: uid(), listId: t.listId, title: t.title, done: false, priority: t.priority,
+    tags: [...t.tags], subtasks: [], notes:'', dueDate: todayISO(), createdAt: Date.now(), completedAt: null,
+    order: t.order, recurrence: null, reminderDaysBefore: null, reminders: [] });
+  saveState(); render(); renderSuggestions();
+}
+function addToToday(taskId){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  t.dueDate = todayISO();
+  saveState(); render(); renderSuggestions();
+}
+
+/* =====================================================================
+   IMPORTACIÓN MASIVA
+   ===================================================================== */
+function openImport(){
+  const listOptions = state.lists.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>Importar tareas</h2>
+
+        <div class="ai-panel">
+          <div class="field-label" style="margin-top:0;">🪄 Pegar texto o subir una foto — la IA arma la lista</div>
+          <textarea id="ai-import-text" placeholder="Pegá cualquier texto suelto o desordenado (notas, WhatsApp, etc.)" style="min-height:80px;"></textarea>
+          <div class="recur-extra" style="margin-top:8px;">
+            <input type="file" id="ai-import-image" accept="image/*" style="font-size:12px;max-width:220px;">
+            <button class="btn" style="font-size:12px;" onclick="analyzeImportWithAI()" id="ai-import-btn">Analizar con IA</button>
+          </div>
+          <div id="ai-import-preview"></div>
+        </div>
+
+        <div class="field-label">Lista destino</div>
+        <select id="import-list">${listOptions}</select>
+        <div class="field-label">Fecha para estas tareas (opcional)</div>
+        <div class="recur-extra">
+          <input type="date" id="import-date">
+          <button class="btn" style="font-size:12px;" onclick="document.getElementById('import-date').value=todayISO()">Hoy</button>
+        </div>
+        <div class="field-label">Pendientes (una por línea)</div>
+        <textarea id="import-pending" placeholder="Ej: Llamar al cliente" style="min-height:100px;"></textarea>
+        <div class="field-label">Completadas (una por línea)</div>
+        <textarea id="import-done" placeholder="Ej: Enviar factura" style="min-height:100px;"></textarea>
+        <div class="modal-actions">
+          <div></div>
+          <div class="right">
+            <button class="btn" onclick="closeModal()">Cancelar</button>
+            <button class="btn primary" onclick="runImport()">Importar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+function runImport(){
+  const listId = document.getElementById('import-list').value;
+  if(!listId){ alert('Creá una lista primero.'); return; }
+  const chosenDate = document.getElementById('import-date').value || null;
+  const pendingLines = document.getElementById('import-pending').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const doneLines = document.getElementById('import-done').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  let maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===listId).map(t=>t.order||0));
+
+  pendingLines.forEach(title=>{
+    maxOrder++;
+    state.tasks.push({ id: uid(), listId, title, done:false, priority:null, tags:[], subtasks:[], notes:'',
+      dueDate:chosenDate, createdAt:Date.now(), completedAt:null, order:maxOrder, recurrence:null, reminderDaysBefore:null, reminders:[] });
+  });
+  doneLines.forEach(title=>{
+    maxOrder++;
+    state.tasks.push({ id: uid(), listId, title, done:true, priority:null, tags:[], subtasks:[], notes:'',
+      dueDate:chosenDate, createdAt:Date.now(), completedAt:chosenDate||todayISO(), order:maxOrder, recurrence:null, reminderDaysBefore:null, reminders:[] });
+    state.totalCompletedEver = (state.totalCompletedEver||0) + 1;
+  });
+
+  closeModal();
+  state.currentView = {type:'list', id:listId};
+  saveState(); render();
+  showToast(`Importadas ${pendingLines.length + doneLines.length} tareas`);
+}
+
+/* =====================================================================
+   POMODORO
+   ===================================================================== */
+let pomodoro = { running:false, secondsLeft:25*60, mode:'focus', timer:null };
+function togglePomodoroPanel(){
+  const el = document.getElementById('pomodoro-container');
+  el.innerHTML = el.innerHTML ? '' : renderPomodoroHtml();
+  document.getElementById('pomodoro-btn').classList.toggle('on', !!el.innerHTML);
+}
+function renderPomodoroHtml(){
+  const m = Math.floor(pomodoro.secondsLeft/60), s = pomodoro.secondsLeft%60;
+  return `<div class="pomodoro-panel">
+    <div class="pomodoro-mode">${pomodoro.mode==='focus'?'Foco':'Descanso'}</div>
+    <div class="pomodoro-time" id="pomodoro-time">${pad2(m)}:${pad2(s)}</div>
+    <div class="pomodoro-actions">
+      <button class="btn" onclick="pomodoroToggle()">${pomodoro.running?'Pausar':'Iniciar'}</button>
+      <button class="btn" onclick="pomodoroReset()">Reiniciar</button>
+    </div>
+  </div>`;
+}
+function pomodoroToggle(){
+  pomodoro.running = !pomodoro.running;
+  if(pomodoro.running){
+    pomodoro.timer = setInterval(()=>{
+      pomodoro.secondsLeft--;
+      if(pomodoro.secondsLeft <= 0){
+        if(pomodoro.mode==='focus') recordFocusSession(25);
+        pomodoro.mode = pomodoro.mode==='focus' ? 'break' : 'focus';
+        pomodoro.secondsLeft = pomodoro.mode==='focus' ? 25*60 : 5*60;
+        showToast(pomodoro.mode==='focus' ? '¡Descanso terminado! A concentrarse.' : '¡25 minutos completos! Tomate un descanso.');
+      }
+      const t = document.getElementById('pomodoro-time');
+      if(t){ const m=Math.floor(pomodoro.secondsLeft/60), s=pomodoro.secondsLeft%60; t.innerText = `${pad2(m)}:${pad2(s)}`; }
+    }, 1000);
+  } else {
+    clearInterval(pomodoro.timer);
+  }
+  document.getElementById('pomodoro-container').innerHTML = renderPomodoroHtml();
+}
+/** Guarda una sesión de foco completada (para mostrar el tiempo total en Estadísticas). */
+function recordFocusSession(minutes){
+  if(!state.focusSessions) state.focusSessions = [];
+  state.focusSessions.push({ date: todayISO(), minutes });
+  saveState();
+}
+function pomodoroReset(){
+  clearInterval(pomodoro.timer);
+  pomodoro = { running:false, secondsLeft:25*60, mode:'focus', timer:null };
+  document.getElementById('pomodoro-container').innerHTML = renderPomodoroHtml();
+}
+
+/* =====================================================================
+   AYUDANTES DE PRESENTACIÓN
+   ===================================================================== */
+function priorityLabel(p){ return p==='alta' ? 'Alta' : p==='media' ? 'Media' : p==='baja' ? 'Baja' : ''; }
+function priorityIcon(p){ return p==='alta' ? '🔴' : p==='media' ? '🟠' : p==='baja' ? '🔵' : ''; }
+function dateLabelFor(dateStr, done){
+  if(!dateStr) return null;
+  const t0 = todayISO();
+  if(dateStr === t0) return {text:'Hoy', cls:'today'};
+  if(dateStr < t0 && !done) return {text:'Vencida · '+dateStr, cls:'overdue'};
+  const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+  if(dateStr === toISO(tmr)) return {text:'Mañana', cls:''};
+  return {text: dateStr, cls:''};
+}
+
+/** Texto tipo "Completada hoy a las 14:35" para mostrar en tareas ya terminadas. */
+function formatCompletedWhen(t){
+  if(!t.completedAtTime) return t.completedAt ? `Completada el ${t.completedAt}` : null;
+  const d = new Date(t.completedAtTime);
+  const timeLabel = pad2(d.getHours())+':'+pad2(d.getMinutes());
+  const t0 = todayISO();
+  let dayLabel;
+  if(t.completedAt === t0) dayLabel = 'hoy';
+  else if(t.completedAt === yesterdayISO()) dayLabel = 'ayer';
+  else dayLabel = `el ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+  return `Completada ${dayLabel} a las ${timeLabel}`;
+}
+
+/* =====================================================================
+   RENDER: SIDEBAR
+   ===================================================================== */
+const QUICK_FILTERS = [
+  {id:'overdue', label:'Vencidas', icon:'⏰'},
+  {id:'week', label:'Esta semana', icon:'📆'},
+  {id:'nodate', label:'Sin fecha', icon:'○'},
+  {id:'pending', label:'Pendientes', icon:'◔'},
+  {id:'completed', label:'Completadas', icon:'✓'}
+];
+
+function renderSidebar(){
+  const smart = document.getElementById('smart-views');
+  const t0 = todayISO();
+  const todayCount = state.tasks.filter(t=>!t.done && (t.dueDate===t0 || isOverdue(t))).length;
+  const upcomingCount = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate > t0).length;
+  const impCount = state.tasks.filter(t=>!t.done && t.priority==='alta').length;
+  smart.innerHTML = `
+    <div class="nav-item ${state.currentView.type==='today'?'active':''}" onclick="selectView('today', null)"><span class="nav-icon">☀️</span><span>Mi día</span><span class="count">${todayCount||''}</span></div>
+    <div class="nav-item ${state.currentView.type==='upcoming'?'active':''}" onclick="selectView('upcoming', null)"><span class="nav-icon">📋</span><span>Próximos</span><span class="count">${upcomingCount||''}</span></div>
+    <div class="nav-item ${state.currentView.type==='important'?'active':''}" onclick="selectView('important', null)"><span class="nav-icon">⭐</span><span>Importantes</span><span class="count">${impCount||''}</span></div>
+    <div class="nav-item ${state.currentView.type==='calendar'?'active':''}" onclick="selectView('calendar', null)"><span class="nav-icon">📅</span><span>Calendario</span></div>
+    <div class="nav-item ${state.currentView.type==='stats'?'active':''}" onclick="selectView('stats', null)"><span class="nav-icon">📊</span><span>Estadísticas</span></div>
+    <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">▦</span><span>Kanban</span></div>
+    <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">🗒️</span><span>Agenda</span></div>
+    <div class="nav-item ${state.currentView.type==='week'?'active':''}" onclick="selectView('week', null)"><span class="nav-icon">🗓️</span><span>Semana</span></div>
+  `;
+
+  const filtersCollapsed = !!collapsedSections.filters;
+  document.getElementById('filters-toggle').classList.toggle('collapsed', filtersCollapsed);
+  const qf = document.getElementById('quick-filters');
+  qf.className = 'section-body' + (filtersCollapsed ? ' collapsed' : '');
+  qf.innerHTML = QUICK_FILTERS.map(f=>{
+    const active = state.currentView.type==='filter' && state.currentView.id===f.id;
+    return `<div class="nav-item ${active?'active':''}" onclick="selectView('filter','${f.id}')"><span class="nav-icon">${f.icon}</span><span>${f.label}</span></div>`;
+  }).join('');
+
+  const listsCollapsed = !!collapsedSections.lists;
+  document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
+  const listsEl = document.getElementById('lists');
+  listsEl.className = 'section-body' + (listsCollapsed ? ' collapsed' : '');
+  listsEl.innerHTML = state.lists.map(l=>{
+    const count = state.tasks.filter(t=>t.listId===l.id && !t.done).length;
+    const active = state.currentView.type==='list' && state.currentView.id===l.id;
+    return `<div class="list-row ${active?'active':''}" draggable="true" data-list-id="${l.id}"
+      ondragstart="onListDragStart(event,'${l.id}')" ondragover="onListDragOver(event)"
+      ondragleave="onListDragLeave(event)" ondrop="onListDrop(event,'${l.id}')" ondragend="onListDragEnd(event)"
+      onclick="selectView('list','${l.id}')">
+      <span class="list-row-inner"><span class="dot" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span class="count">${count||''}</span>
+        <span class="del-list-btn" onclick="deleteList('${l.id}', event)">✕</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================================
+   ASISTENTE DIARIO (tarjeta de bienvenida con insights)
+   ===================================================================== */
+function tomorrowISO(){ const d = new Date(); d.setDate(d.getDate()+1); return toISO(d); }
+
+/** Racha de días consecutivos completando al menos una tarea (compartido con Estadísticas). */
+function computeStreak(){
+  const byDate = {};
+  state.tasks.filter(t=>t.done && t.completedAt).forEach(t=>{ byDate[t.completedAt] = (byDate[t.completedAt]||0)+1; });
+  let streak = 0, cursor = new Date();
+  while(true){
+    const iso = toISO(cursor);
+    if(byDate[iso]){ streak++; cursor.setDate(cursor.getDate()-1); } else break;
+  }
+  return streak;
+}
+function getWeekRange(offsetWeeks){
+  offsetWeeks = offsetWeeks || 0;
+  const now = new Date(); now.setDate(now.getDate() + offsetWeeks*7);
+  const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return { startISO: toISO(start), endISO: toISO(end) };
+}
+
+/** Pool de mensajes variados según el contexto del día — evita repetir siempre lo mismo. */
+const SMART_MESSAGE_POOLS = {
+  none: ['¡Excelente! No tenés tareas pendientes para hoy.', '🎉 Día libre de tareas. Buen momento para planificar algo lindo.'],
+  overdue: ['Tenés varias tareas vencidas. Conviene resolverlas antes de agregar nuevas.', 'Hay tareas atrasadas esperando — priorizalas hoy si podés.'],
+  busy: ['Hoy tenés bastante trabajo. Te recomiendo empezar por las tareas de prioridad alta.', 'Día cargado — andá de a una, empezando por lo más urgente.'],
+  light: ['Hoy es un día tranquilo, no tenés muchas tareas.', 'Poco en la agenda hoy — buen momento para adelantar algo de mañana.'],
+  streak: ['Llevás una buena racha completando tareas — no la cortes hoy.', '¡Racha activa! Sumá una tarea más para seguir la cadena.'],
+  normal: ['Vamos por un gran día.', 'Un paso a la vez, todo suma.', 'Buen momento para poner en marcha el día.']
+};
+function pickSmartMessage(pendingToday, overdueCount, streak){
+  let pool;
+  if(pendingToday===0) pool = SMART_MESSAGE_POOLS.none;
+  else if(overdueCount>0) pool = SMART_MESSAGE_POOLS.overdue;
+  else if(pendingToday>=8) pool = SMART_MESSAGE_POOLS.busy;
+  else if(streak>=3) pool = SMART_MESSAGE_POOLS.streak;
+  else if(pendingToday<=3) pool = SMART_MESSAGE_POOLS.light;
+  else pool = SMART_MESSAGE_POOLS.normal;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function renderDayProgress(){
+  const t0 = todayISO();
+  const tmr = tomorrowISO();
+  const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
+
+  const todayTasks = state.tasks.filter(t=> t.dueDate===t0 || (t.done && t.completedAt===t0));
+  const pendingToday = state.tasks.filter(t=>!t.done && t.dueDate===t0);
+  const doneToday = todayTasks.filter(t=>t.done).length;
+  const total = todayTasks.length;
+  const pct = total ? Math.round((doneToday/total)*100) : 0;
+  const highTodayCount = pendingToday.filter(t=>t.priority==='alta').length;
+  const overdueCount = state.tasks.filter(isOverdue).length;
+  const yesterdayCount = state.tasks.filter(t=>t.done && t.completedAt===yesterdayISO()).length;
+  const tomorrowCount = state.tasks.filter(t=>!t.done && t.dueDate===tmr).length;
+  const streak = computeStreak();
+
+  // Insights automáticos
+  const mostImportant = [...pendingToday].sort((a,b)=>(prioOrder[a.priority]??3)-(prioOrder[b.priority]??3))[0];
+  const nextDeadline = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate>t0).sort((a,b)=>a.dueDate.localeCompare(b.dueDate))[0];
+  const { startISO: weekStart, endISO: weekEnd } = getWeekRange(0);
+  const weekTasks = state.tasks.filter(t=>t.dueDate && t.dueDate>=weekStart && t.dueDate<=weekEnd);
+  const weekPendingCount = weekTasks.filter(t=>!t.done).length;
+  const weekDoneCount = weekTasks.filter(t=>t.done).length;
+  const weekCompletionPct = weekTasks.length ? Math.round((weekDoneCount/weekTasks.length)*100) : null;
+  const estimatedMinutesToday = pendingToday.reduce((sum,t)=>sum+(t.estimatedMinutes||0), 0);
+  const lastWeek = getWeekRange(-1);
+  const lastWeekDone = state.tasks.filter(t=>t.done && t.completedAt>=lastWeek.startISO && t.completedAt<=lastWeek.endISO).length;
+  const vsYesterday = doneToday - yesterdayCount;
+
+  const bullets = [];
+  bullets.push(`👋 Hoy tenés <strong>${pendingToday.length}</strong> tarea${pendingToday.length===1?'':'s'} pendiente${pendingToday.length===1?'':'s'}.`);
+  if(highTodayCount>0) bullets.push(`🔴 ${highTodayCount} de prioridad alta.`);
+  if(overdueCount>0) bullets.push(`⚠️ Tenés ${overdueCount} tarea${overdueCount===1?'':'s'} vencida${overdueCount===1?'':'s'}.`);
+  if(yesterdayCount>0) bullets.push(`✅ Ayer completaste ${yesterdayCount} tarea${yesterdayCount===1?'':'s'}.`);
+  if(streak>=2) bullets.push(`🔥 Llevás ${streak} días seguidos completando tareas.`);
+
+  const insights = [];
+  if(mostImportant) insights.push(`La tarea más importante de hoy: <strong>${escapeHtml(mostImportant.title)}</strong>.`);
+  if(nextDeadline) insights.push(`Próximo vencimiento: <strong>${escapeHtml(nextDeadline.title)}</strong> (${nextDeadline.dueDate}).`);
+  insights.push(`Quedan <strong>${weekPendingCount}</strong> tarea${weekPendingCount===1?'':'s'} para terminar la semana.`);
+  if(estimatedMinutesToday>0) insights.push(`Tiempo estimado de trabajo hoy: <strong>${estimatedMinutesToday} min</strong>.`);
+  if(yesterdayCount>0 || doneToday>0) insights.push(vsYesterday>0 ? `Vas ${vsYesterday} tarea${vsYesterday===1?'':'s'} mejor que ayer a esta altura.` : vsYesterday<0 ? `Ayer llevabas ${Math.abs(vsYesterday)} más completadas a esta altura.` : `Mismo ritmo que ayer.`);
+  if(lastWeekDone>0 || weekDoneCount>0) insights.push(`Esta semana completaste ${weekDoneCount}, la semana pasada ${lastWeekDone}.`);
+  if(weekCompletionPct!==null) insights.push(`Cumplimiento semanal: <strong>${weekCompletionPct}%</strong>.`);
+
+  const suggestion = mostImportant ? `Sugerencia: empezá por "<strong>${escapeHtml(mostImportant.title)}</strong>"${mostImportant.dueDate===t0?' porque vence hoy':''}.` : '';
+
+  const r = 22, c = 2*Math.PI*r;
+  const offset = c - (pct/100)*c;
+  document.getElementById('day-progress-container').innerHTML = `
+    <div class="day-progress-card">
+      <div class="dpc-row">
+        <div class="dpc-ring-wrap">
+          <svg width="52" height="52" viewBox="0 0 52 52">
+            <circle cx="26" cy="26" r="${r}" fill="none" stroke="var(--border)" stroke-width="5"></circle>
+            <circle cx="26" cy="26" r="${r}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round"
+              stroke-dasharray="${c}" stroke-dashoffset="${offset}"></circle>
+          </svg>
+          <div class="dpc-ring-pct">${pct}%</div>
+        </div>
+        <div class="dpc-text">
+          <div class="dpc-msg">${pickSmartMessage(pendingToday.length, overdueCount, streak)}</div>
+          <div class="dpc-stats">${bullets.join(' &nbsp;·&nbsp; ')}</div>
+        </div>
+      </div>
+      ${tomorrowCount>0 ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12.5px;">
+        <span>📅 Para mañana ya tenés ${tomorrowCount} tarea${tomorrowCount===1?'':'s'} programada${tomorrowCount===1?'':'s'}.</span>
+        <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="selectView('tomorrow', null)">Ver mañana</button>
+      </div>` : ''}
+      ${insights.length ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-2);line-height:1.8;">
+        ${insights.join('<br>')}
+      </div>` : ''}
+      ${suggestion ? `<div style="margin-top:10px;font-size:12.5px;color:var(--accent-strong);">${suggestion}</div>` : ''}
+    </div>`;
+}
+
+/* =====================================================================
+   RENDER: TARJETA DE TAREA
+   ===================================================================== */
+function renderTaskCard(t){
+  const list = state.lists.find(l=>l.id===t.listId);
+  const isExpanded = !!expanded[t.id];
+  const subDoneCount = t.subtasks.filter(s=>s.done).length;
+  const subPct = t.subtasks.length ? Math.round((subDoneCount/t.subtasks.length)*100) : 0;
+  const dateInfo = dateLabelFor(t.dueDate, t.done);
+  const recurLabel = t.recurrence ? (t.recurrence.type==='daily'?'🔁 diaria':t.recurrence.type==='weekly'?'🔁 semanal':t.recurrence.type==='monthly'?'🔁 mensual':`🔁 cada ${t.recurrence.interval}d`) : '';
+  const isSelected = selectedIds.has(t.id);
+  const prioClass = t.priority ? 'prio-'+t.priority : '';
+
+  return `
+  <div class="task ${t.done?'done':''} ${prioClass} ${isSelected?'selected':''}" data-task-id="${t.id}" draggable="true"
+    ondragstart="onTaskDragStart(event,'${t.id}')" ondragover="onTaskDragOver(event,'${t.id}')"
+    ondragleave="onTaskDragLeaveCard(event)" ondrop="onTaskDrop(event,'${t.id}')" ondragend="onTaskDragEnd(event)"
+    oncontextmenu="openContextMenu(event,'${t.id}')">
+    <div class="task-row">
+      ${selectMode ? `<div class="select-box ${isSelected?'checked':''}" onclick="toggleSelectTask('${t.id}',event)">${isSelected?'✓':''}</div>` : ''}
+      <div class="checkbox ${t.done?'checked':''}" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div>
+      <div class="task-body">
+        <div class="task-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</div>
+        ${t.done && formatCompletedWhen(t) ? `<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">✓ ${formatCompletedWhen(t)}</div>` : ''}
+        <div class="task-meta">
+          ${t.priority ? `<span class="badge ${t.priority==='alta'?'high':t.priority==='media'?'med':'low'}" onclick="cyclePriority('${t.id}')" style="cursor:pointer">${priorityIcon(t.priority)} ${priorityLabel(t.priority)}</span>` : `<span class="badge low" style="opacity:.4;cursor:pointer" onclick="cyclePriority('${t.id}')">Sin prioridad</span>`}
+          ${dateInfo ? `<span class="date-badge ${dateInfo.cls}">📅 ${dateInfo.text}</span>` : ''}
+          ${t.estimatedMinutes ? `<span class="date-badge">⏱️ ${t.estimatedMinutes} min</span>` : ''}
+          ${recurLabel ? `<span class="recur-badge">${recurLabel}</span>` : ''}
+          ${state.currentView.type!=='list' ? `<span class="tag" style="color:${list?list.color:'#888'}">${list?escapeHtml(list.name):''}</span>` : ''}
+          ${t.tags.map(tag=>`<span class="tag">${escapeHtml(tag)} <span style="cursor:pointer" onclick="removeTag('${t.id}','${tag}')">✕</span></span>`).join('')}
+        </div>
+        ${t.subtasks.length ? `<div class="progress-bar-wrap"><div class="progress-bar" style="width:${subPct}%"></div></div>` : ''}
+        ${!isExpanded ? `<button class="expand-btn" onclick="toggleExpand('${t.id}')">${t.subtasks.length ? `Subtareas (${subDoneCount}/${t.subtasks.length})` : 'Agregar detalle'}</button>` : ''}
+        ${isExpanded ? `
+          <div class="subtasks">
+            ${t.subtasks.map(s=>`
+              <div class="subtask-row ${s.done?'done':''}" draggable="true" ondragstart="onSubDragStart(event,'${t.id}','${s.id}')" ondragover="event.preventDefault()" ondrop="onSubDrop(event,'${t.id}','${s.id}')">
+                <div class="checkbox ${s.done?'checked':''}" onclick="toggleSubtask('${t.id}','${s.id}')">${s.done?'✓':''}</div>
+                <span>${escapeHtml(s.title)}</span>
+                <span style="cursor:pointer;color:var(--text-muted);margin-left:auto" onclick="deleteSubtask('${t.id}','${s.id}')">✕</span>
+              </div>`).join('')}
+            <div class="add-sub">
+              <input type="text" id="sub-input-${t.id}" placeholder="Nueva subtarea" onkeydown="if(event.key==='Enter')addSubtask('${t.id}')">
+              <button onclick="addSubtask('${t.id}')">Agregar</button>
+            </div>
+            <div class="add-tag-row">
+              <input type="text" id="tag-input-${t.id}" placeholder="Nueva etiqueta" onkeydown="if(event.key==='Enter')addTag('${t.id}')">
+              <button onclick="addTag('${t.id}')">Etiquetar</button>
+            </div>
+            ${t.notes ? `<div style="font-size:12px;color:var(--text-2);margin-top:9px;white-space:pre-wrap;">${escapeHtml(t.notes)}</div>` : ''}
+            <button class="expand-btn" onclick="toggleExpand('${t.id}')">Ocultar</button>
+          </div>
+        ` : ''}
+      </div>
+      <div class="task-actions">
+        <button class="icon-btn" onclick="openEditModal('${t.id}')" title="Editar">✎</button>
+        <button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   RENDER: ESTADÍSTICAS (con gráficos)
+   ===================================================================== */
+let statsCharts = [];
+function destroyStatsCharts(){ statsCharts.forEach(c=>c.destroy()); statsCharts = []; }
+
+function renderStats(container){
+  destroyStatsCharts();
+  const created = state.tasks.length;
+  const doneTasks = state.tasks.filter(t=>t.done && t.completedAt);
+  const completedCount = doneTasks.length;
+  const pct = created ? Math.round((completedCount/created)*100) : 0;
+  const overdueCount = state.tasks.filter(isOverdue).length;
+
+  const byDate = {};
+  doneTasks.forEach(t=>{ byDate[t.completedAt] = (byDate[t.completedAt]||0) + 1; });
+  const dates = Object.keys(byDate).sort();
+  const avgDaily = dates.length ? Math.round((completedCount/dates.length)*10)/10 : 0;
+
+  const streak = computeStreak();
+
+  const focusSessions = state.focusSessions || [];
+  const t0 = todayISO();
+  const { startISO: weekStartISO } = getWeekRange(0);
+  const focusTotalMinutes = focusSessions.reduce((s,f)=>s+f.minutes, 0);
+  const focusTodayMinutes = focusSessions.filter(f=>f.date===t0).reduce((s,f)=>s+f.minutes, 0);
+  const focusWeekMinutes = focusSessions.filter(f=>f.date>=weekStartISO).reduce((s,f)=>s+f.minutes, 0);
+  const focusSessionsCount = focusSessions.length;
+  const doneToday = doneTasks.filter(t=>t.completedAt===t0).length;
+
+  const byList = {};
+  doneTasks.forEach(t=>{ byList[t.listId] = (byList[t.listId]||0)+1; });
+  const listRows = state.lists.map(l=>({name:l.name, count: byList[l.id]||0})).sort((a,b)=>b.count-a.count);
+
+  const last7 = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); last7.push(toISO(d)); }
+  const weekCounts = last7.map(d=>byDate[d]||0);
+
+  const monthLabels = [], monthCounts = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(); d.setMonth(d.getMonth()-i);
+    const label = d.toLocaleDateString('es-AR',{month:'short'});
+    const prefix = d.getFullYear()+'-'+pad2(d.getMonth()+1);
+    monthLabels.push(label);
+    monthCounts.push(dates.filter(dd=>dd.startsWith(prefix)).reduce((s,dd)=>s+byDate[dd],0));
+  }
+
+  container.innerHTML = `
+    <div class="stats-summary">
+      <div class="stat-card"><div class="num">${created}</div><div class="label">Tareas creadas</div></div>
+      <div class="stat-card"><div class="num">${completedCount}</div><div class="label">Completadas</div></div>
+      <div class="stat-card"><div class="num">${pct}%</div><div class="label">Cumplimiento</div></div>
+      <div class="stat-card"><div class="num">${overdueCount}</div><div class="label">Vencidas</div></div>
+      <div class="stat-card"><div class="num">${avgDaily}</div><div class="label">Promedio diario</div></div>
+      <div class="stat-card"><div class="num">${streak}</div><div class="label">Racha de días</div></div>
+    </div>
+    <div class="chart-card" id="chart-week-card"><canvas id="chart-week"></canvas></div>
+    <div class="chart-card" id="chart-month-card"><canvas id="chart-month"></canvas></div>
+    <div class="task-group-label">Tiempo de foco (Pomodoro)</div>
+    <div class="stats-summary" style="grid-template-columns:repeat(3,1fr);">
+      <div class="stat-card"><div class="num">${focusSessionsCount}</div><div class="label">Sesiones completadas</div></div>
+      <div class="stat-card"><div class="num">${Math.floor(focusTotalMinutes/60)}h ${focusTotalMinutes%60}m</div><div class="label">Tiempo total en foco</div></div>
+      <div class="stat-card"><div class="num">${focusTodayMinutes}m</div><div class="label">Foco hoy</div></div>
+      <div class="stat-card"><div class="num">${focusWeekMinutes}m</div><div class="label">Foco esta semana</div></div>
+      <div class="stat-card"><div class="num">${completedCount}</div><div class="label">Tareas hechas</div></div>
+      <div class="stat-card"><div class="num">${doneToday}</div><div class="label">Completadas hoy</div></div>
+    </div>
+    <div class="task-group-label">Productividad por lista</div>
+    ${listRows.map(r=>`<div class="stats-row"><span>${escapeHtml(r.name)}</span><div class="bar-wrap"><div class="bar" style="width:${Math.round((r.count/Math.max(1,...listRows.map(x=>x.count)))*100)}%"></div></div><span class="day-count">${r.count}</span></div>`).join('') || '<div class="empty">Todavía no hay datos.</div>'}
+  `;
+
+  if(typeof Chart !== 'undefined'){
+    const isDark = state.darkMode;
+    const gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+    const textColor = isDark ? '#a3a2ac' : '#6e6d67';
+    const weekdayShort = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const weekLabels = last7.map(d=>weekdayShort[new Date(d+'T00:00:00').getDay()]);
+
+    statsCharts.push(new Chart(document.getElementById('chart-week'), {
+      type:'bar',
+      data:{ labels: weekLabels, datasets:[{ label:'Completadas', data: weekCounts, backgroundColor:'#3b6bf0', borderRadius:6 }] },
+      options:{ responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'Productividad semanal',color:textColor}},
+        scales:{ x:{ticks:{color:textColor},grid:{display:false}}, y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true} } }
+    }));
+    statsCharts.push(new Chart(document.getElementById('chart-month'), {
+      type:'bar',
+      data:{ labels: monthLabels, datasets:[{ label:'Completadas', data: monthCounts, backgroundColor:'#3f95a8', borderRadius:6 }] },
+      options:{ responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'Productividad mensual',color:textColor}},
+        scales:{ x:{ticks:{color:textColor},grid:{display:false}}, y:{ticks:{color:textColor,stepSize:1},grid:{color:gridColor},beginAtZero:true} } }
+    }));
+  } else {
+    // Respaldo sin dependencias externas: si Chart.js no cargó (sin internet, CSP, etc.),
+    // mostramos barras simples hechas con CSS para que la sección nunca quede vacía.
+    const weekdayShort = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const weekLabels = last7.map(d=>weekdayShort[new Date(d+'T00:00:00').getDay()]);
+    renderCssBarChart('chart-week-card', 'Productividad semanal', weekLabels, weekCounts);
+    renderCssBarChart('chart-month-card', 'Productividad mensual', monthLabels, monthCounts);
+  }
+}
+
+/** Gráfico de barras simple en CSS puro, usado cuando Chart.js no está disponible. */
+function renderCssBarChart(containerId, title, labels, values){
+  const max = Math.max(1, ...values);
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = `
+    <div class="task-group-label" style="margin-top:0;">${title}</div>
+    <div style="display:flex;align-items:flex-end;gap:10px;height:140px;padding:0 4px;">
+      ${values.map((v,i)=>`
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${v||''}</div>
+          <div style="width:70%;background:var(--accent);border-radius:5px 5px 0 0;height:${Math.max(2, Math.round((v/max)*100))}%;"></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(labels[i])}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+/* =====================================================================
+   RENDER: CALENDARIO
+   ===================================================================== */
+function changeMonth(delta){ calDate.setMonth(calDate.getMonth()+delta); render(); }
+function onCalDragOver(evt){ evt.preventDefault(); evt.currentTarget.classList.add('drag-over'); }
+function onCalDragLeave(evt){ evt.currentTarget.classList.remove('drag-over'); }
+function onCalDrop(evt, dateISO){
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('drag-over');
+  if(!draggedTaskId) return;
+  const t = state.tasks.find(t=>t.id===draggedTaskId);
+  if(t){ t.dueDate = dateISO; saveState(); render(); showToast('Fecha actualizada'); }
+  draggedTaskId = null;
+}
+function calChipClass(t){
+  let cls = t.priority==='alta'?'high':t.priority==='media'?'med':'';
+  if(t.done) cls += ' done';
+  if(isOverdue(t)) cls += ' overdue';
+  return cls;
+}
+function renderCalendar(container){
+  const year = calDate.getFullYear(), month = calDate.getMonth();
+  const first = new Date(year, month, 1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const monthName = calDate.toLocaleDateString('es-AR',{month:'long', year:'numeric'});
+  const weekdayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const t0 = todayISO();
+
+  let cells = '';
+  for(let i=0;i<startOffset;i++){
+    const d = new Date(year, month, 1-startOffset+i);
+    cells += `<div class="cal-day other-month"><div class="cal-day-num">${d.getDate()}</div></div>`;
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    const iso = toISO(new Date(year, month, day));
+    const dayTasks = state.tasks.filter(t=>t.dueDate===iso).slice(0,4);
+    cells += `<div class="cal-day ${iso===t0?'today':''}" ondragover="onCalDragOver(event)" ondragleave="onCalDragLeave(event)" ondrop="onCalDrop(event,'${iso}')">
+      <div class="cal-day-num">${day}</div>
+      ${dayTasks.map(t=>`<div class="cal-task-chip ${calChipClass(t)}" draggable="true" ondragstart="onTaskDragStart(event,'${t.id}')" ondragend="onTaskDragEnd(event)" onclick="openEditModal('${t.id}')" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>`).join('')}
+    </div>`;
+  }
+
+  container.innerHTML = `
+    <div class="cal-nav">
+      <button onclick="changeMonth(-1)">←</button>
+      <strong style="text-transform:capitalize;">${monthName}</strong>
+      <button onclick="changeMonth(1)">→</button>
+    </div>
+    <div class="calendar-grid">
+      ${weekdayNames.map(w=>`<div class="cal-weekday">${w}</div>`).join('')}
+      ${cells}
+    </div>`;
+}
+
+/* =====================================================================
+   RENDER: SEMANA
+   ===================================================================== */
+function changeWeek(delta){ weekDate.setDate(weekDate.getDate()+delta*7); render(); }
+function renderWeek(container){
+  const start = new Date(weekDate); start.setDate(start.getDate() - start.getDay());
+  const weekdayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const t0 = todayISO();
+  let cells = '';
+  for(let i=0;i<7;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const iso = toISO(d);
+    const dayTasks = state.tasks.filter(t=>t.dueDate===iso);
+    cells += `<div class="cal-day week-day ${iso===t0?'today':''}" ondragover="onCalDragOver(event)" ondragleave="onCalDragLeave(event)" ondrop="onCalDrop(event,'${iso}')">
+      <div class="cal-day-num">${weekdayNames[i]} ${d.getDate()}</div>
+      ${dayTasks.map(t=>`<div class="cal-task-chip ${calChipClass(t)}" draggable="true" ondragstart="onTaskDragStart(event,'${t.id}')" ondragend="onTaskDragEnd(event)" onclick="openEditModal('${t.id}')" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>`).join('')}
+    </div>`;
+  }
+  container.innerHTML = `
+    <div class="cal-nav">
+      <button onclick="changeWeek(-1)">←</button>
+      <strong>Semana del ${toISO(start)}</strong>
+      <button onclick="changeWeek(1)">→</button>
+    </div>
+    <div class="week-grid">${cells}</div>`;
+}
+
+/* =====================================================================
+   RENDER: KANBAN (columnas por prioridad)
+   ===================================================================== */
+const KANBAN_COLUMNS = [
+  {key:'alta', label:'Alta prioridad', color:'var(--high)'},
+  {key:'media', label:'Media prioridad', color:'var(--med)'},
+  {key:'baja', label:'Baja prioridad', color:'var(--low)'},
+  {key:'none', label:'Sin prioridad', color:'var(--text-muted)'}
+];
+function onKanbanDragOver(evt){ evt.preventDefault(); evt.currentTarget.classList.add('drag-over'); }
+function onKanbanDragLeave(evt){ evt.currentTarget.classList.remove('drag-over'); }
+function onKanbanDrop(evt, colKey){
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('drag-over');
+  if(!draggedTaskId) return;
+  const t = state.tasks.find(t=>t.id===draggedTaskId);
+  if(t){ t.priority = colKey==='none' ? null : colKey; saveState(); render(); }
+  draggedTaskId = null;
+}
+function renderKanban(container){
+  const pending = state.tasks.filter(t=>!t.done);
+  container.innerHTML = `<div class="kanban-grid">
+    ${KANBAN_COLUMNS.map(col=>{
+      const items = pending.filter(t=> col.key==='none' ? !t.priority : t.priority===col.key);
+      return `<div class="kanban-col" ondragover="onKanbanDragOver(event)" ondragleave="onKanbanDragLeave(event)" ondrop="onKanbanDrop(event,'${col.key}')">
+        <div class="kanban-col-header"><span class="dot" style="background:${col.color}"></span>${col.label} (${items.length})</div>
+        ${items.map(t=>`<div class="kanban-card" draggable="true" ondragstart="onTaskDragStart(event,'${t.id}')" ondragend="onTaskDragEnd(event)" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</div>`).join('') || '<div class="empty" style="padding:8px 0;">Sin tareas</div>'}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* =====================================================================
+   RENDER: AGENDA (vencidas + próximos agrupados por día)
+   ===================================================================== */
+function renderAgenda(container){
+  const t0 = todayISO();
+  const overdue = state.tasks.filter(isOverdue);
+  const upcoming = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate >= t0);
+  const byDate = {};
+  upcoming.forEach(t=>{ (byDate[t.dueDate] = byDate[t.dueDate]||[]).push(t); });
+  const dates = Object.keys(byDate).sort();
+  const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
+  const weekdayNames = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+  let html = '';
+  if(overdue.length){
+    html += `<div class="task-group-label">Vencidas</div>`;
+    html += overdue.sort((a,b)=>{ const d=(prioOrder[a.priority]??3)-(prioOrder[b.priority]??3); return d!==0?d:(a.order||0)-(b.order||0); }).map(renderTaskCard).join('');
+  }
+  if(dates.length===0 && overdue.length===0){ container.innerHTML = '<div class="empty">No hay tareas próximas.</div>'; return; }
+  dates.forEach(d=>{
+    const dayTasks = byDate[d].sort((a,b)=>{ const d2=(prioOrder[a.priority]??3)-(prioOrder[b.priority]??3); return d2!==0?d2:(a.order||0)-(b.order||0); });
+    const dObj = new Date(d+'T00:00:00');
+    const label = d===t0 ? `Hoy · ${dObj.getDate()}/${dObj.getMonth()+1}` : `${weekdayNames[dObj.getDay()]} ${dObj.getDate()}/${dObj.getMonth()+1}`;
+    html += `<div class="task-group-label">${label}</div>`;
+    html += dayTasks.map(renderTaskCard).join('');
+  });
+  container.innerHTML = html;
+}
+
+/* =====================================================================
+   RENDER: PRÓXIMOS
+   ===================================================================== */
+function renderUpcoming(container){
+  const t0 = todayISO();
+  const tasks = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate > t0);
+  if(tasks.length===0){ container.innerHTML = '<div class="empty">No hay tareas con fecha próxima.</div>'; return; }
+  const byDate = {};
+  tasks.forEach(t=>{ (byDate[t.dueDate] = byDate[t.dueDate]||[]).push(t); });
+  const dates = Object.keys(byDate).sort();
+  const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
+  const weekdayNames = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  let html = '';
+  dates.forEach(d=>{
+    const dayTasks = byDate[d].sort((a,b)=>{ const d2=(prioOrder[a.priority]??3)-(prioOrder[b.priority]??3); return d2!==0?d2:(a.order||0)-(b.order||0); });
+    const dObj = new Date(d+'T00:00:00');
+    html += `<div class="task-group-label">${weekdayNames[dObj.getDay()]} ${dObj.getDate()}/${dObj.getMonth()+1}</div>`;
+    html += dayTasks.map(renderTaskCard).join('');
+  });
+  container.innerHTML = html;
+}
+
+/* =====================================================================
+   RENDER PRINCIPAL
+   ===================================================================== */
+function render(){
+  renderSidebar();
+  renderDayProgress();
+  renderBulkBar();
+  if(suggestionsOpen) renderSuggestions();
+  const v = state.currentView;
+  const titleEl = document.getElementById('main-title');
+  const subEl = document.getElementById('main-sub');
+  const addWrap = document.getElementById('add-task-wrap');
+  const body = document.getElementById('view-body');
+  const counterEl = document.getElementById('pending-counter');
+
+  const pendingTotal = state.tasks.filter(t=>!t.done).length;
+  counterEl.innerText = `${pendingTotal} tarea${pendingTotal===1?'':'s'} pendiente${pendingTotal===1?'':'s'} en total`;
+
+  const specialViews = {
+    stats: ()=>{ titleEl.innerText='Estadísticas'; subEl.innerText='Tu actividad y productividad'; addWrap.style.display='none'; renderStats(body); },
+    calendar: ()=>{ titleEl.innerText='Calendario'; subEl.innerText='Arrastrá una tarea a otro día para reprogramarla'; addWrap.style.display='none'; renderCalendar(body); },
+    week: ()=>{ titleEl.innerText='Semana'; subEl.innerText='Tus tareas de la semana'; addWrap.style.display='none'; renderWeek(body); },
+    kanban: ()=>{ titleEl.innerText='Kanban'; subEl.innerText='Arrastrá tarjetas entre columnas para cambiar la prioridad'; addWrap.style.display='none'; renderKanban(body); },
+    agenda: ()=>{ titleEl.innerText='Agenda'; subEl.innerText='Vencidas y próximas, agrupadas por día'; addWrap.style.display='none'; renderAgenda(body); },
+    upcoming: ()=>{ titleEl.innerText='Próximos'; subEl.innerText='Tareas con fecha, agrupadas por día'; addWrap.style.display='none'; renderUpcoming(body); }
+  };
+  if(specialViews[v.type]){ specialViews[v.type](); return; }
+
+  addWrap.style.display='block';
+  if(v.type==='today'){ titleEl.innerText='Mi día'; subEl.innerText='Tareas de hoy y vencidas'; }
+  else if(v.type==='important'){ titleEl.innerText='Importantes'; subEl.innerText='Tareas con prioridad alta'; }
+  else if(v.type==='tomorrow'){ titleEl.innerText='Mañana'; subEl.innerText='Tareas programadas para mañana'; }
+  else if(v.type==='filter'){ const f = QUICK_FILTERS.find(f=>f.id===v.id); titleEl.innerText = f ? f.label : ''; subEl.innerText=''; }
+  else { const l = state.lists.find(l=>l.id===v.id); titleEl.innerText = l ? l.name : ''; subEl.innerText=''; }
+
+  const tasks = getVisibleTasks();
+  let pending = tasks.filter(t=>!t.done);
+  const done = tasks.filter(t=>t.done);
+
+  if(v.type==='list'){ pending.sort((a,b)=> (a.order||0) - (b.order||0)); }
+  else {
+    const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
+    pending.sort((a,b)=> {
+      const diff = (prioOrder[a.priority]??3) - (prioOrder[b.priority]??3);
+      return diff !== 0 ? diff : (a.order||0) - (b.order||0);
+    });
+  }
+
+  let html = '';
+  if(pending.length===0 && done.length===0){
+    html = '<div class="empty">No hay tareas todavía. Agregá una arriba.</div>';
+  } else {
+    if(pending.length) html += pending.map(renderTaskCard).join('');
+    if(done.length && !state.hideCompleted){
+      html += `<div class="task-group-label" style="cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="toggleHideCompleted()"><span style="display:inline-block;transition:transform .15s;">⌄</span> Completadas (${done.length})</div>`;
+      html += done.map(renderTaskCard).join('');
+    } else if(done.length && state.hideCompleted){
+      html += `<div class="task-group-label" style="cursor:pointer;display:flex;align-items:center;gap:6px;" onclick="toggleHideCompleted()"><span style="display:inline-block;transform:rotate(-90deg);transition:transform .15s;">⌄</span> Completadas (${done.length})</div>`;
+    }
+  }
+  body.innerHTML = html;
+}
+function toggleHideCompleted(){ state.hideCompleted = !state.hideCompleted; saveState(); render(); }
+
+/* =====================================================================
+   CELEBRACIÓN
+   ===================================================================== */
+function showCelebration(count){
+  document.getElementById('celebration-container').innerHTML = `
+    <div class="celebration-overlay" onclick="closeCelebration(event)">
+      <div class="celebration-box">
+        <div class="big">🎉</div>
+        <div class="title">¡Van ${count} tareas completadas!</div>
+        <div class="sub">Seguí así, vas muy bien.</div>
+        <button onclick="closeCelebration(event)">Genial</button>
+      </div>
+    </div>`;
+}
+function closeCelebration(evt){ evt.stopPropagation(); document.getElementById('celebration-container').innerHTML=''; }
+
+/* =====================================================================
+   ATAJOS DE TECLADO
+   ===================================================================== */
+document.addEventListener('keydown', (e)=>{
+  const tag = (e.target.tagName||'').toLowerCase();
+  const typing = tag==='input' || tag==='textarea' || tag==='select';
+  if(e.key === 'Escape'){ closeModal(); closeSearchOverlay(); closeContextMenu(); return; }
+  if(typing) return;
+  if(e.key === '/'){ e.preventDefault(); openSearch(); }
+  else if(e.key === 'n'){ e.preventDefault(); if(state.currentView.type==='list'){ document.getElementById('new-task-title').focus(); } }
+  else if(e.key === 'f'){ e.preventDefault(); toggleFocusMode(); }
+});
+
+loadState();
+</script>
+</body>
+</html>
