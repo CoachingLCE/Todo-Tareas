@@ -690,6 +690,9 @@ function migrateState(){
   if(!state.lists.some(l=> normalize(l.name)==='ilce')){
     state.lists.push({ id: uid(), name:'ILCE', color:'#8a5fd6' });
   }
+  if(!state.lists.some(l=> normalize(l.name)==='agenda')){
+    state.lists.push({ id: uid(), name:'Agenda', color:'#dd9012' });
+  }
   state.tasks.forEach((t,i)=>{
     if(typeof t.order !== 'number') t.order = i;
     if(typeof t.notes !== 'string') t.notes = '';
@@ -705,12 +708,13 @@ function migrateState(){
 }
 
 function seedDefault(){
-  const l1 = uid(), l2 = uid(), l3 = uid();
+  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid();
   state = {
     lists: [
       {id:l1, name:'Personal', color:'#3b6bf0'},
       {id:l2, name:'Compras', color:'#3f95a8'},
-      {id:l3, name:'ILCE', color:'#8a5fd6'}
+      {id:l3, name:'ILCE', color:'#8a5fd6'},
+      {id:l4, name:'Agenda', color:'#dd9012'}
     ],
     tasks: [],
     currentView: {type:'list', id:l1},
