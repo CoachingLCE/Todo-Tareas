@@ -304,6 +304,7 @@
       <h1>Mis tareas</h1>
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" aria-label="Modo oscuro">🌙</button>
     </div>
+    <div id="account-indicator"></div>
     <div class="search-btn" onclick="openSearch()">🔍 Buscar <span class="kbd">/</span></div>
     <div id="smart-views"></div>
 
@@ -361,6 +362,7 @@
     <div id="suggestions-body"></div>
   </div>
 </div>
+<div id="login-gate-container"></div>
 <div id="celebration-container"></div>
 <div id="modal-container"></div>
 <div id="search-container"></div>
@@ -399,12 +401,92 @@ function escapeHtml(s){ const d = document.createElement('div'); d.textContent =
 /* Storage: usa window.storage dentro de Claude; si no existe (archivo abierto
    suelto en el navegador), usa localStorage como respaldo. */
 const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage !== null;
+
+/* =====================================================================
+   LOGIN POR MAIL + GOOGLE SHEETS (opcional)
+   Mientras APPS_SCRIPT_URL no esté configurada, la app funciona exactamente
+   igual que antes (sin pedir login, guardando solo en este navegador/Claude).
+   Una vez configurada, cada mail guarda y trae sus propias tareas desde la
+   planilla de Google, permitiendo usar la app desde distintos dispositivos.
+   ===================================================================== */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnAY7ZTHKUc68A7oC1Tzfz2aXo0FgJ_bsMHyMJLFBaEJJCbslG5Bi4o2aFwaqUEljkbw/exec';
+const EMAIL_STORAGE_KEY = 'mis-tareas-active-email';
+let currentUserEmail = null;
+
+function isSheetsConfigured(){ return !!APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('http') === 0; }
+function getSavedEmail(){ try{ return localStorage.getItem(EMAIL_STORAGE_KEY); }catch(e){ return null; } }
+function setSavedEmail(email){ try{ localStorage.setItem(EMAIL_STORAGE_KEY, email); }catch(e){} }
+function clearSavedEmail(){ try{ localStorage.removeItem(EMAIL_STORAGE_KEY); }catch(e){} }
+
+async function sheetsGet(email){
+  const url = APPS_SCRIPT_URL + '?action=get&email=' + encodeURIComponent(email);
+  const resp = await fetch(url);
+  const data = await resp.json();
+  return data.value || null;
+}
+async function sheetsSet(email, value){
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method:'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'}, // evita el preflight CORS con Apps Script
+    body: JSON.stringify({ action:'save', email, value })
+  });
+  const data = await resp.json();
+  if(!data.success) throw new Error('La planilla no confirmó el guardado');
+}
+
+function showLoginGate(){
+  document.getElementById('login-gate-container').innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-box" style="text-align:center;">
+        <h2>Iniciar sesión</h2>
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Ingresá tu mail para ver tus tareas</div>
+        <input type="email" id="login-email-input" placeholder="tu@mail.com" onkeydown="if(event.key==='Enter')submitLogin()">
+        <div id="login-error" style="color:var(--high);font-size:12px;margin-top:8px;"></div>
+        <button class="btn primary" style="margin-top:16px;width:100%;" onclick="submitLogin()">Entrar</button>
+      </div>
+    </div>`;
+  setTimeout(()=>{ const el = document.getElementById('login-email-input'); if(el) el.focus(); }, 30);
+}
+function submitLogin(){
+  const input = document.getElementById('login-email-input');
+  const email = input.value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    document.getElementById('login-error').innerText = 'Ingresá un mail válido.';
+    return;
+  }
+  setSavedEmail(email);
+  currentUserEmail = email;
+  document.getElementById('login-gate-container').innerHTML = '';
+  loadState();
+}
+function logoutUser(){
+  if(!confirm(`¿Cerrar sesión de ${currentUserEmail}?`)) return;
+  clearSavedEmail();
+  location.reload();
+}
+function renderAccountIndicator(){
+  const el = document.getElementById('account-indicator');
+  if(!el) return;
+  if(!currentUserEmail){ el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="search-btn" onclick="logoutUser()" title="Cerrar sesión" style="margin-bottom:12px;">
+    👤 ${escapeHtml(currentUserEmail)} <span class="kbd" style="margin-left:auto;">Salir</span>
+  </div>`;
+}
+
 async function storageGet(key){
+  if(currentUserEmail && isSheetsConfigured()){
+    const value = await sheetsGet(currentUserEmail);
+    return value ? { key, value, shared:false } : null;
+  }
   if(hasClaudeStorage) return await window.storage.get(key, false);
   const raw = localStorage.getItem(key);
   return raw !== null ? { key, value: raw, shared:false } : null;
 }
 async function storageSet(key, value){
+  if(currentUserEmail && isSheetsConfigured()){
+    await sheetsSet(currentUserEmail, value);
+    return { key, value, shared:false };
+  }
   if(hasClaudeStorage) return await window.storage.set(key, value, false);
   localStorage.setItem(key, value);
   return { key, value, shared:false };
@@ -2345,6 +2427,7 @@ function renderUpcoming(container){
    RENDER PRINCIPAL
    ===================================================================== */
 function render(){
+  renderAccountIndicator();
   renderSidebar();
   renderDayProgress();
   renderBulkBar();
@@ -2434,7 +2517,17 @@ document.addEventListener('keydown', (e)=>{
   else if(e.key === 'f'){ e.preventDefault(); toggleFocusMode(); }
 });
 
-loadState();
+/** Punto de arranque: si hay login configurado (APPS_SCRIPT_URL) y no hay sesión activa, pide el mail primero. */
+function initApp(){
+  if(isSheetsConfigured()){
+    const saved = getSavedEmail();
+    if(saved){ currentUserEmail = saved; loadState(); }
+    else { showLoginGate(); }
+  } else {
+    loadState();
+  }
+}
+initApp();
 </script>
 </body>
 </html>
