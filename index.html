@@ -108,7 +108,7 @@
   .organize-suggestion-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
   .organize-suggestion-row:last-child{border-bottom:none;}
 
-  .add-task-wrap{margin:22px 0 20px;}
+  .add-task-wrap{margin:22px 0 14px;}
   .add-task{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;flex-wrap:wrap;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s;}
   .add-task:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
   .add-task input[type=text]{flex:1;min-width:180px;border:none;outline:none;font-size:14.5px;background:transparent;color:var(--text);}
@@ -139,7 +139,7 @@
 
   /* ---------- Task cards ---------- */
   .task-group-label{font-size:11.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:20px 0 10px;}
-  .task{background:var(--card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:var(--radius);padding:13px 14px;margin-bottom:8px;
+  .task{position:relative;background:var(--card);border:1px solid var(--border);border-left:3px solid transparent;border-radius:var(--radius);padding:13px 14px;margin-bottom:8px;
     transition:opacity .25s var(--ease),transform .25s var(--ease),box-shadow .15s,border-color .15s;box-shadow:var(--shadow-sm);}
   .task:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong);}
   .task.prio-alta{border-left-color:var(--high);}
@@ -173,10 +173,11 @@
   .date-badge.today{color:var(--accent-strong);background:var(--accent-bg);font-weight:600;}
   .date-badge.overdue{color:var(--high);background:var(--high-bg);font-weight:600;}
   .recur-badge{font-size:11px;color:var(--text-muted);}
-  .task-actions{display:flex;gap:2px;margin-left:8px;flex-shrink:0;opacity:0;transition:opacity .12s;}
-  .task:hover .task-actions{opacity:1;}
+  .task-actions{position:absolute;top:10px;right:10px;display:flex;gap:2px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s;}
+  .task:hover .task-actions,.task-actions.force-visible{opacity:1;visibility:visible;pointer-events:auto;}
   .icon-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:4px 6px;border-radius:6px;transition:background .12s,color .12s;}
-  .kebab-btn{display:none;}
+  .desktop-only-action{display:none;}
+  .kebab-btn{display:flex;align-items:center;justify-content:center;min-width:26px;min-height:26px;font-size:16px;background:var(--card);border:1px solid var(--border);border-radius:6px;}
   .icon-btn:hover{color:var(--text);background:var(--bg);}
   .progress-bar-wrap{background:var(--bg);border-radius:20px;height:4px;overflow:hidden;margin-top:6px;width:100%;max-width:180px;}
   .progress-bar{height:100%;background:var(--accent);border-radius:20px;transition:width .25s var(--ease);}
@@ -310,7 +311,7 @@
   /* ---------- Agenda ---------- */
   .agenda-day{margin-bottom:6px;}
 
-  .pending-counter{font-size:12px;color:var(--text-muted);margin-bottom:16px;}
+  .pending-counter{font-size:12px;color:var(--text-muted);margin-bottom:8px;}
   .reminder-banner{background:var(--med-bg);color:var(--med);border-radius:var(--radius-sm);padding:11px 15px;font-size:13px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
   .reminder-banner button{background:none;border:none;color:var(--med);cursor:pointer;font-weight:600;}
 
@@ -431,6 +432,7 @@
     /* Menú de acciones: solo kebab visible, botones sueltos ocultos */
     .desktop-only-action{display:none;}
     .kebab-btn{display:flex;min-width:38px;min-height:38px;align-items:center;justify-content:center;font-size:18px;}
+    .task-actions{opacity:1;visibility:visible;pointer-events:auto;top:6px;right:6px;}
 
     /* Modales como Bottom Sheet (desde abajo, como Android/iOS) */
     .modal-overlay{align-items:flex-end;}
