@@ -113,6 +113,7 @@
   .add-task:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
   .add-task input[type=text]{flex:1;min-width:180px;border:none;outline:none;font-size:14.5px;background:transparent;color:var(--text);}
   .prio-select{display:flex;gap:5px;}
+  .mobile-prio-toggle, .mobile-prio-menu{display:none;}
   .prio-btn{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);cursor:pointer;background:transparent;transition:transform .12s;}
   .prio-btn:hover{transform:scale(1.12);}
   .prio-btn.high{border-color:var(--high);} .prio-btn.high.sel{background:var(--high);}
@@ -345,25 +346,36 @@
   .sidebar-backdrop{display:none;}
   @media (max-width: 768px){
     .mobile-menu-btn{display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);
-      border-radius:var(--radius-sm);width:36px;height:36px;cursor:pointer;color:var(--text-2);flex-shrink:0;}
+      border-radius:var(--radius-sm);width:44px;height:44px;cursor:pointer;color:var(--text-2);flex-shrink:0;}
     .sidebar{position:fixed;top:0;left:-280px;bottom:0;width:260px;z-index:60;transition:left .25s var(--ease);box-shadow:var(--shadow-lg);}
     .sidebar.mobile-open{left:0;}
     .sidebar-backdrop.mobile-open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:55;}
-    .main{padding:0 14px 24px;}
-    .header-row{flex-wrap:wrap;gap:10px;}
-    .main-header{font-size:19px;}
-    .header-actions{flex-wrap:wrap;}
-    .hbtn{width:32px;height:32px;}
-    .day-progress-card{padding:14px 16px;}
-    .dpc-hero{gap:16px;}
-    .dpc-hero-item .num{font-size:21px;}
-    .dpc-hero-item .label{font-size:11px;}
-    .task{padding:14px 15px;}
-    .task-title{font-size:14.5px;}
-    .add-task{flex-wrap:wrap;}
-    .add-task input[type=text]{width:100%;order:1;}
-    .add-task-submit{order:2;}
+    .main{padding:0 10px 90px;}
+    .top-header{padding:14px 0 10px;}
+    .header-row{gap:8px;}
+    .main-header{font-size:17px;margin-bottom:0;}
+    .main-sub{display:none;}
+    .header-actions{gap:6px;}
+    .hbtn{width:44px;height:44px;}
+    .day-progress-card{padding:12px 14px;}
+    .dpc-greeting{font-size:15px;margin-bottom:8px;}
+    .dpc-hero{gap:14px;margin-bottom:10px;}
+    .dpc-hero-item .num{font-size:19px;}
+    .dpc-hero-item .label{font-size:10px;}
+    .organize-btn{padding:12px 16px;font-size:13.5px;}
+
+    /* Cards de tareas mucho más compactas */
+    .task{padding:9px 12px;}
+    .task-title{font-size:13.5px;font-weight:500;}
+    .task-meta{gap:5px;margin-top:5px;}
+    .badge, .tag, .date-badge{font-size:10px;padding:2px 7px;}
+    .checkbox{width:22px;height:22px;}
+    .task-actions .icon-btn{min-width:38px;min-height:38px;display:flex;align-items:center;justify-content:center;}
+    .progress-bar-wrap{margin-top:5px;}
+    .task-group-label{margin:12px 0 6px;}
+
     .stats-summary{grid-template-columns:repeat(2,1fr);}
+    .stats-hero{grid-template-columns:1fr;gap:8px;}
     .kanban-grid{grid-template-columns:1fr;}
     .calendar-grid, .week-grid{gap:3px;}
     .cal-day{min-height:56px;padding:4px;font-size:10px;}
@@ -372,12 +384,44 @@
     .modal-box{width:94vw;padding:20px;max-height:88vh;}
     .search-box{width:94vw;}
     .suggestions-panel{position:fixed;right:0;top:0;bottom:0;width:82vw;max-width:300px;z-index:60;}
-    .pomodoro-panel{right:12px;bottom:12px;left:12px;width:auto;}
+    .pomodoro-panel{right:12px;bottom:96px;left:12px;width:auto;}
     .login-box{width:92vw;padding:28px 22px;}
     .login-title{font-size:26px;}
     .login-subtitle{font-size:14px;margin-bottom:22px;}
     .login-input{height:52px;font-size:16px;}
     .login-btn{height:52px;font-size:16px;}
+
+    /* Barra fija de "Agregar tarea" abajo, con selector de prioridad y fecha compactos */
+    .add-task-wrap{position:fixed;left:0;right:0;bottom:0;margin:0;z-index:45;background:var(--card);
+      border-top:1px solid var(--border);padding:8px 10px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -3px 14px rgba(0,0,0,.08);}
+    .add-task{border-radius:26px;padding:6px 6px 6px 16px;box-shadow:none;}
+    .add-task input[type=text]{width:auto;min-width:0;order:0;}
+    .prio-select{order:1;position:relative;}
+    #new-prio .prio-btn{display:none;}
+    .mobile-prio-toggle{display:flex;width:32px;height:32px;border-radius:50%;border:2px solid var(--border-strong);
+      background:transparent;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;}
+    .mobile-prio-toggle .dot{width:10px;height:10px;border-radius:50%;}
+    .mobile-prio-menu{position:absolute;bottom:44px;right:0;background:var(--card);border:1px solid var(--border);
+      border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:6px;min-width:120px;z-index:50;}
+    .mobile-prio-menu button{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 10px;
+      font-size:13px;color:var(--text);border-radius:var(--radius-sm);cursor:pointer;}
+    .mobile-prio-menu button:hover{background:var(--bg);}
+    .mobile-prio-menu .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+    .add-task input[type=date]{order:2;width:34px;padding:0;background:transparent;border:none;flex-shrink:0;color-scheme:light dark;}
+    [data-theme="dark"] .add-task input[type=date]{filter:invert(1);}
+    .add-task-submit{order:3;width:40px;height:40px;border-radius:50%;padding:0;font-size:22px;line-height:1;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .smart-chips{position:fixed;left:10px;right:10px;bottom:66px;z-index:44;}
+
+    /* Swipe sobre tareas: derecha completa, izquierda revela editar/eliminar */
+    .task-swipe-wrapper{position:relative;overflow:hidden;border-radius:var(--radius);margin-bottom:9px;}
+    .task-swipe-wrapper .task{margin-bottom:0;}
+    .task-swipe-actions{position:absolute;top:0;right:0;bottom:0;width:132px;display:flex;z-index:1;}
+    .swipe-action-btn{flex:1;border:none;color:#fff;font-size:11px;font-weight:600;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:3px;cursor:pointer;min-height:44px;}
+    .swipe-action-btn.edit{background:var(--accent);}
+    .swipe-action-btn.delete{background:var(--high);}
+    .task-swipe-wrapper.swipe-right-active .task{background:var(--success-bg);}
   }
 </style>
 </head>
@@ -433,6 +477,13 @@
           <button class="prio-btn high" onclick="setNewPrio('alta')" title="Alta"></button>
           <button class="prio-btn med" onclick="setNewPrio('media')" title="Media"></button>
           <button class="prio-btn low" onclick="setNewPrio('baja')" title="Baja"></button>
+          <button class="mobile-prio-toggle" id="mobile-prio-toggle" onclick="toggleMobilePrioMenu(event)" title="Prioridad"><span class="dot" id="mobile-prio-dot" style="background:var(--border-strong);"></span></button>
+          <div class="mobile-prio-menu" id="mobile-prio-menu" style="display:none;">
+            <button onclick="setNewPrioFromMobile('alta')"><span class="dot" style="background:var(--high)"></span>Alta</button>
+            <button onclick="setNewPrioFromMobile('media')"><span class="dot" style="background:var(--med)"></span>Media</button>
+            <button onclick="setNewPrioFromMobile('baja')"><span class="dot" style="background:var(--low)"></span>Baja</button>
+            <button onclick="setNewPrioFromMobile(null)"><span class="dot" style="background:var(--border-strong)"></span>Ninguna</button>
+          </div>
         </div>
         <input type="date" id="new-task-date" onchange="manualDateOverride=true">
         <button class="add-task-submit" onclick="addTask()">Agregar</button>
@@ -661,6 +712,7 @@ async function loadState(){
   applyTheme();
   render();
   // attachDashboardScrollListener(); // desactivado: causaba un glitch visual al compactar
+  attachSwipeHandlers();
   renderReminderBanner();
   maybeShowWelcomeMessage();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
@@ -853,6 +905,73 @@ function toggleFocusMode(){
   document.getElementById('focus-mode-btn').classList.toggle('on', focusMode);
 }
 
+/* =====================================================================
+   SWIPE SOBRE TAREAS (mobile): derecha completa, izquierda revela editar/eliminar
+   ===================================================================== */
+let swipeState = null;
+
+function closeSwipeReveal(wrapper){
+  const inner = wrapper.querySelector('.task');
+  if(inner){ inner.style.transition = 'transform .2s var(--ease)'; inner.style.transform = 'translateX(0)'; }
+  wrapper.classList.remove('revealed','swipe-right-active');
+}
+
+function attachSwipeHandlers(){
+  const container = document.getElementById('view-body');
+  if(!container || container.dataset.swipeAttached) return;
+  container.dataset.swipeAttached = '1';
+  container.addEventListener('touchstart', onSwipeStart, { passive:true });
+  container.addEventListener('touchmove', onSwipeMove, { passive:false });
+  container.addEventListener('touchend', onSwipeEnd);
+  document.addEventListener('touchstart', (e)=>{
+    const open = document.querySelector('.task-swipe-wrapper.revealed');
+    if(open && !open.contains(e.target)) closeSwipeReveal(open);
+  });
+}
+function onSwipeStart(e){
+  const wrapper = e.target.closest('.task-swipe-wrapper');
+  if(!wrapper) return;
+  document.querySelectorAll('.task-swipe-wrapper.revealed').forEach(w=>{ if(w!==wrapper) closeSwipeReveal(w); });
+  const touch = e.touches[0];
+  swipeState = { wrapper, startX: touch.clientX, startY: touch.clientY, currentX:0, taskId: wrapper.dataset.taskId, moved:false };
+}
+function onSwipeMove(e){
+  if(!swipeState) return;
+  const touch = e.touches[0];
+  const dx = touch.clientX - swipeState.startX;
+  const dy = touch.clientY - swipeState.startY;
+  if(!swipeState.moved && Math.abs(dy) > Math.abs(dx)) return; // scroll vertical, no interferir
+  if(!swipeState.moved && Math.abs(dx) > 8) swipeState.moved = true;
+  if(!swipeState.moved) return;
+  e.preventDefault();
+  const clamped = Math.max(-140, Math.min(90, dx));
+  swipeState.currentX = clamped;
+  const inner = swipeState.wrapper.querySelector('.task');
+  inner.style.transition = 'none';
+  inner.style.transform = `translateX(${clamped}px)`;
+  swipeState.wrapper.classList.toggle('swipe-right-active', clamped > 40);
+}
+function onSwipeEnd(){
+  if(!swipeState) return;
+  const { wrapper, currentX, taskId, moved } = swipeState;
+  const inner = wrapper.querySelector('.task');
+  if(!moved){ swipeState = null; return; }
+  inner.style.transition = 'transform .2s var(--ease)';
+  if(currentX > 70){
+    inner.style.transform = 'translateX(0)';
+    wrapper.classList.remove('swipe-right-active');
+    const cb = wrapper.querySelector('.checkbox');
+    handleCompleteClick(taskId, { currentTarget: cb });
+  } else if(currentX < -70){
+    inner.style.transform = 'translateX(-132px)';
+    wrapper.classList.add('revealed');
+  } else {
+    inner.style.transform = 'translateX(0)';
+    wrapper.classList.remove('revealed','swipe-right-active');
+  }
+  swipeState = null;
+}
+
 function toggleMobileSidebar(){
   const open = document.querySelector('.sidebar').classList.toggle('mobile-open');
   document.getElementById('sidebar-backdrop').classList.toggle('mobile-open', open);
@@ -1004,6 +1123,29 @@ function setNewPrio(p){
   manualPrioOverride = true;
   document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
   if(newPrio) document.querySelector('#new-prio .'+newPrio).classList.add('sel');
+  updateMobilePrioDot();
+}
+function updateMobilePrioDot(){
+  const dot = document.getElementById('mobile-prio-dot');
+  if(!dot) return;
+  const color = newPrio==='alta' ? 'var(--high)' : newPrio==='media' ? 'var(--med)' : newPrio==='baja' ? 'var(--low)' : 'var(--border-strong)';
+  dot.style.background = color;
+}
+function toggleMobilePrioMenu(evt){
+  if(evt) evt.stopPropagation();
+  const menu = document.getElementById('mobile-prio-menu');
+  const open = menu.style.display === 'block';
+  menu.style.display = open ? 'none' : 'block';
+  if(!open) setTimeout(()=>document.addEventListener('click', closeMobilePrioMenuOnce, {once:true}), 0);
+}
+function closeMobilePrioMenuOnce(){ document.getElementById('mobile-prio-menu').style.display = 'none'; }
+function setNewPrioFromMobile(p){
+  newPrio = p;
+  manualPrioOverride = true;
+  document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
+  if(newPrio) { const btn = document.querySelector('#new-prio .'+(newPrio==='alta'?'high':newPrio==='media'?'med':'low')); if(btn) btn.classList.add('sel'); }
+  updateMobilePrioDot();
+  document.getElementById('mobile-prio-menu').style.display = 'none';
 }
 
 function onTitleInput(){
@@ -1075,6 +1217,7 @@ function addTask(){
   document.getElementById('new-task-date').value = '';
   newPrio = null; manualPrioOverride = false; manualDateOverride = false;
   document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
+  updateMobilePrioDot();
   document.getElementById('smart-chips-preview').innerHTML = '';
   saveState(); render(); renderReminderBanner();
   setTimeout(()=>{ justAddedTaskId = null; }, 400);
@@ -2402,6 +2545,11 @@ function renderTaskCard(t){
   const prioClass = t.priority ? 'prio-'+t.priority : '';
 
   return `
+  <div class="task-swipe-wrapper" data-task-id="${t.id}">
+    <div class="task-swipe-actions">
+      <button class="swipe-action-btn edit" onclick="openEditModal('${t.id}')">✎<span>Editar</span></button>
+      <button class="swipe-action-btn delete" onclick="deleteTask('${t.id}')">✕<span>Eliminar</span></button>
+    </div>
   <div class="task ${t.done?'done':''} ${prioClass} ${isSelected?'selected':''} ${t.id===justAddedTaskId?'task-enter':''}" data-task-id="${t.id}" draggable="true"
     ondragstart="onTaskDragStart(event,'${t.id}')" ondragover="onTaskDragOver(event,'${t.id}')"
     ondragleave="onTaskDragLeaveCard(event)" ondrop="onTaskDrop(event,'${t.id}')" ondragend="onTaskDragEnd(event)"
@@ -2448,6 +2596,7 @@ function renderTaskCard(t){
         <button class="icon-btn" onclick="deleteTask('${t.id}')" title="Eliminar">✕</button>
       </div>
     </div>
+  </div>
   </div>`;
 }
 
