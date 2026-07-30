@@ -41,7 +41,7 @@
 
   /* ---------- Sidebar ---------- */
   .sidebar{width:246px;background:var(--card);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;overflow-y:auto;}
-  .sidebar-brand{display:flex;justify-content:space-between;align-items:center;margin:2px 8px 16px;}
+  .sidebar-brand{display:flex;justify-content:space-between;align-items:center;margin:2px 8px 16px;gap:6px;}
   .sidebar-brand h1{font-size:15.5px;font-weight:600;margin:0;letter-spacing:-.01em;}
   .theme-toggle{background:none;border:none;border-radius:var(--radius-sm);width:30px;height:30px;cursor:pointer;font-size:14px;color:var(--text-2);transition:background .15s;}
   .theme-toggle:hover{background:var(--bg);}
@@ -490,6 +490,7 @@
     <div class="sidebar-brand">
       <h1>Mis tareas</h1>
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" aria-label="Modo oscuro"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></button>
+      <button class="theme-toggle" onclick="openSettingsPanel()" title="Configuración" aria-label="Configuración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></button>
     </div>
     <div id="account-indicator"></div>
     <div class="search-btn" onclick="openSearch()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg> Buscar <span class="kbd">/</span></div>
@@ -520,7 +521,7 @@
         <div class="header-actions">
           <button class="hbtn" onclick="openHelp()" title="Cómo funciona" aria-label="Cómo funciona"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 1.8-2.2 3.3M12 17h.01"/></svg></button>
           <button class="hbtn" onclick="openSyncStatusPanel()" title="Sincronización" aria-label="Sincronización"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17.5 19H9a5 5 0 1 1 1.03-9.9A6 6 0 0 1 21 11.5 4.5 4.5 0 0 1 17.5 19Z"/></svg></button>
-          <button class="hbtn" onclick="openSettingsPanel()" title="Configuración" aria-label="Configuración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></button>
+          
           <button class="hbtn" id="select-mode-btn" onclick="toggleSelectMode()" title="Selección múltiple" aria-label="Selección múltiple"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg></button>
           <button class="hbtn" id="focus-mode-btn" onclick="toggleFocusMode()" title="Modo concentración" aria-label="Modo concentración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".5" fill="currentColor"/></svg></button>
           <button class="hbtn" id="pomodoro-btn" onclick="togglePomodoroPanel()" title="Pomodoro" aria-label="Pomodoro"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
@@ -1230,7 +1231,8 @@ const SMART_LIST_RULES = [
   { match: /\bserie(s)?\b|\btemporada(s)?\b|\bepisodio(s)?\b/, listName: '📺 Series', color:'#c14f8f' },
   { match: /\bescuchar\b|\bpodcast(s)?\b/, listName: '🎧 Podcasts', color:'#2f9e5b' },
   { match: /\bvideo(s)?\b|\byoutube\b/, listName: '▶️ Videos/YouTube', color:'#cc3333' },
-  { match: /\bmedico(s)?\b|\bturno(s)?\b|\bdoctor(a)?\b|\bdentista\b|\bodontolog[oi](a)?\b|\boftalmolog[oi](a)?\b|\bvacuna(s)?\b|\bchequeo(s)?\b|\bclinico\b|\bcontrol medico\b/, listName: '🏥 Turnos Médicos', color:'#d6455c' }
+  { match: /\bmedico(s)?\b|\bturno(s)?\b|\bdoctor(a)?\b|\bdentista\b|\bodontolog[oi](a)?\b|\boftalmolog[oi](a)?\b|\bvacuna(s)?\b|\bchequeo(s)?\b|\bclinico\b|\bcontrol medico\b/, listName: '🏥 Turnos Médicos', color:'#d6455c' },
+  { match: /\bcomprar\b|\bbebida(s)?\b|\bzanahoria(s)?\b|\balimento(s)?\b|\bverdura(s)?\b|\bfruta(s)?\b|\bsupermercado\b|\balmacen\b/, listName: 'Compras', color:'#3f95a8' }
 ];
 function detectSmartListOverride(text){
   const norm = normalize(text);
