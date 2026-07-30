@@ -500,6 +500,7 @@
         </div>
         <div class="header-actions">
           <button class="hbtn" onclick="openHelp()" title="Cómo funciona" aria-label="Cómo funciona"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 1.8-2.2 3.3M12 17h.01"/></svg></button>
+          <button class="hbtn" onclick="openSyncStatusPanel()" title="Sincronización" aria-label="Sincronización">${icon('cloud',16)}</button>
           <button class="hbtn" id="select-mode-btn" onclick="toggleSelectMode()" title="Selección múltiple" aria-label="Selección múltiple"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg></button>
           <button class="hbtn" id="focus-mode-btn" onclick="toggleFocusMode()" title="Modo concentración" aria-label="Modo concentración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".5" fill="currentColor"/></svg></button>
           <button class="hbtn" id="pomodoro-btn" onclick="togglePomodoroPanel()" title="Pomodoro" aria-label="Pomodoro"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
@@ -580,6 +581,7 @@ const STORAGE_KEY = 'todo-app-state';
 const ICONS = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
   moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>',
+  cloud: '<path d="M17.5 19H9a5 5 0 1 1 1.03-9.9A6 6 0 0 1 21 11.5 4.5 4.5 0 0 1 17.5 19Z"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
   star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
@@ -852,26 +854,44 @@ function seedDefault(){
 }
 
 let saveFailureNotified = false;
+/** Guarda un registro simple (últimos 20) de eventos de guardado/sincronización, para mostrar en el panel de Sincronización. */
+function logSyncEvent(success, note){
+  try{
+    const key = 'todo-app-sync-log';
+    let log = [];
+    try{ log = JSON.parse(localStorage.getItem(key)) || []; }catch(e){}
+    log.unshift({ time: Date.now(), success, note });
+    log = log.slice(0, 20);
+    localStorage.setItem(key, JSON.stringify(log));
+  }catch(e){}
+}
+function getSyncLog(){
+  try{ return JSON.parse(localStorage.getItem('todo-app-sync-log')) || []; }catch(e){ return []; }
+}
+
 async function saveState(){
   state.lastSavedAt = Date.now();
   const payload = JSON.stringify(state);
   try{
     await storageSet(STORAGE_KEY, payload);
+    logSyncEvent(true, 'Guardado OK');
   }catch(e){
     console.error('Error guardando (intento 1)', e);
     try{
       // Reintento simple por si fue un error transitorio del servidor
       await storageSet(STORAGE_KEY, payload);
+      logSyncEvent(true, 'Guardado OK (reintento)');
     }catch(e2){
       console.error('Error guardando (intento 2, uso respaldo local)', e2);
       try{
         // Respaldo: guardamos localmente para no perder los cambios de esta sesión
         localStorage.setItem(STORAGE_KEY + '-backup', payload);
+        logSyncEvent(false, 'Falló el guardado en el servidor — respaldado localmente');
         if(!saveFailureNotified){
           saveFailureNotified = true;
           showToast('El guardado en el servidor falló momentáneamente. Tus cambios quedaron respaldados en este navegador.');
         }
-      }catch(e3){ console.error('Respaldo local también falló', e3); }
+      }catch(e3){ console.error('Respaldo local también falló', e3); logSyncEvent(false, 'Falló también el respaldo local'); }
     }
   }
 }
@@ -1618,6 +1638,111 @@ function onSubDrop(evt, taskId, targetSubId){
 /* =====================================================================
    AYUDA / CÓMO FUNCIONA
    ===================================================================== */
+/* =====================================================================
+   PANEL DE SINCRONIZACIÓN Y RESPALDO
+   ===================================================================== */
+function formatSyncTime(ts){
+  if(!ts) return 'nunca';
+  const d = new Date(ts);
+  const t0 = todayISO();
+  const dISO = toISO(d);
+  const time = pad2(d.getHours())+':'+pad2(d.getMinutes());
+  if(dISO === t0) return `hoy a las ${time}`;
+  if(dISO === yesterdayISO()) return `ayer a las ${time}`;
+  return `el ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} a las ${time}`;
+}
+function localStorageWorks(){
+  try{ localStorage.setItem('__test__','1'); localStorage.removeItem('__test__'); return true; }catch(e){ return false; }
+}
+
+async function openSyncStatusPanel(){
+  const usingCloud = !!(currentUserEmail && isSheetsConfigured());
+  const localTaskCount = state.tasks.length;
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>${icon('cloud',18)} Sincronización</h2>
+        <div class="field-label" style="margin-top:0;">Última sincronización</div>
+        <div style="font-size:13px;">${formatSyncTime(state.lastSavedAt)}</div>
+
+        <div class="field-label">Estado</div>
+        <div style="font-size:13px;line-height:1.9;">
+          ${usingCloud ? `☁️ Conectado con <strong>${escapeHtml(currentUserEmail)}</strong>` : hasClaudeStorage ? '💾 Guardando en el almacenamiento de Claude (sin mail)' : '💾 Guardando solo en este navegador'}<br>
+          ${localStorageWorks() ? '✅ Almacenamiento local disponible' : '⚠️ Almacenamiento local no disponible en este navegador'}
+        </div>
+
+        <div class="field-label">Tareas</div>
+        <div style="font-size:13px;" id="sync-task-counts">
+          Local (esta sesión): <strong>${localTaskCount}</strong> · En la nube: <span id="sync-cloud-count">calculando...</span>
+        </div>
+
+        <div class="field-label">Acciones</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn" onclick="forceSyncNow()">🔄 Forzar sincronización</button>
+          <button class="btn" onclick="restoreFromCloud()">☁️ Restaurar desde la nube</button>
+          <button class="btn" onclick="restoreFromLocalBackup()">💾 Restaurar desde copia local</button>
+        </div>
+
+        <div class="field-label">Historial de respaldos recientes</div>
+        <div style="font-size:12px;color:var(--text-2);max-height:140px;overflow-y:auto;line-height:1.8;">
+          ${getSyncLog().length ? getSyncLog().map(l=>`${l.success?'✅':'⚠️'} ${formatSyncTime(l.time)} — ${escapeHtml(l.note)}`).join('<br>') : 'Sin eventos registrados todavía.'}
+        </div>
+
+        <div class="modal-actions">
+          <div></div>
+          <div class="right"><button class="btn primary" onclick="closeModal()">Cerrar</button></div>
+        </div>
+      </div>
+    </div>`;
+  // La cantidad en la nube se calcula aparte (implica una llamada de red)
+  if(usingCloud){
+    try{
+      const res = await sheetsGet(currentUserEmail);
+      const cloudTasks = res ? (JSON.parse(res).tasks||[]).length : 0;
+      const el = document.getElementById('sync-cloud-count');
+      if(el) el.innerText = cloudTasks;
+    }catch(e){
+      const el = document.getElementById('sync-cloud-count');
+      if(el) el.innerText = 'no se pudo consultar';
+    }
+  } else {
+    const el = document.getElementById('sync-cloud-count');
+    if(el) el.innerText = 'no aplica (sin login)';
+  }
+}
+
+async function forceSyncNow(){
+  showToast('Sincronizando...');
+  await saveState();
+  await checkForRemoteUpdates();
+  showToast('Sincronización forzada completa');
+  closeModal();
+}
+async function restoreFromCloud(){
+  if(!currentUserEmail || !isSheetsConfigured()){ alert('No hay una cuenta con mail conectada a la nube.'); return; }
+  if(!confirm('Esto va a reemplazar lo que ves ahora por la última versión guardada en la nube. ¿Continuar?')) return;
+  try{
+    const value = await sheetsGet(currentUserEmail);
+    if(!value){ alert('No hay datos guardados en la nube para este mail.'); return; }
+    state = JSON.parse(value);
+    migrateState();
+    render();
+    closeModal();
+    showToast('Restaurado desde la nube');
+  }catch(e){ alert('No se pudo restaurar desde la nube. Probá de nuevo.'); }
+}
+function restoreFromLocalBackup(){
+  const raw = (()=>{ try{ return localStorage.getItem(STORAGE_KEY+'-backup'); }catch(e){ return null; } })();
+  if(!raw){ alert('No hay ninguna copia local de respaldo guardada.'); return; }
+  if(!confirm('Esto va a reemplazar lo que ves ahora por la copia local de respaldo. ¿Continuar?')) return;
+  state = JSON.parse(raw);
+  migrateState();
+  render();
+  saveState();
+  closeModal();
+  showToast('Restaurado desde la copia local');
+}
+
 function openHelp(){
   document.getElementById('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="closeModal(event)">
