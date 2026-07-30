@@ -757,9 +757,10 @@ async function loadState(){
   migrateState();
   applyTheme();
   render();
-  // attachDashboardScrollListener(); // desactivado: causaba un glitch visual al compactar
+  // Header inteligente al scrollear: DESACTIVADO (2da vez con glitch visual, sin poder
+  // verificarlo en vivo en el dispositivo real). El código queda armado por si se retoma
+  // más adelante con la posibilidad de probarlo en el navegador real antes de confirmarlo.
   attachSwipeHandlers();
-  attachDashboardScrollListener();
   renderReminderBanner();
   maybeShowWelcomeMessage();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
