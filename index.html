@@ -748,8 +748,15 @@ async function loadState(){
   } else if(serverState){
     state = serverState;
   } else {
+    // IMPORTANTE: si no llegó ningún dato del servidor (ya sea porque es un usuario
+    // realmente nuevo, o porque falló la lectura por un problema de red), NO guardamos
+    // nada todavía. Antes esto pisaba con una lista vacía cualquier dato real que hubiera
+    // en la planilla ante una falla transitoria de conexión — un guardado real solo debe
+    // ocurrir cuando el usuario efectivamente hace algo (agregar tarea, lista, etc.).
     seedDefault();
-    await saveState();
+    if(currentUserEmail && isSheetsConfigured()){
+      showToast('No se encontraron datos guardados para este mail. Si ya tenías tareas cargadas, revisá tu conexión antes de agregar algo nuevo (para no perder nada).');
+    }
   }
   migrateState();
   applyTheme();
@@ -3192,7 +3199,8 @@ function render(){
 
   const tasks = getVisibleTasks();
   let pending = tasks.filter(t=>!t.done);
-  const done = tasks.filter(t=>t.done);
+  const done = tasks.filter(t=>t.done)
+    .sort((a,b)=> (b.completedAtTime||0) - (a.completedAtTime||0));
 
   if(v.type==='list'){ pending.sort((a,b)=> (a.order||0) - (b.order||0)); }
   else {
