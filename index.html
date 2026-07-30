@@ -1681,6 +1681,7 @@ async function openSyncStatusPanel(){
           <button class="btn" onclick="forceSyncNow()">🔄 Forzar sincronización</button>
           <button class="btn" onclick="restoreFromCloud()">☁️ Restaurar desde la nube</button>
           <button class="btn" onclick="restoreFromLocalBackup()">💾 Restaurar desde copia local</button>
+          <button class="btn danger" onclick="clearLocalBackupNow()">🗑️ Borrar copia local de este navegador</button>
         </div>
 
         <div class="field-label">Historial de respaldos recientes</div>
@@ -1723,9 +1724,18 @@ async function restoreFromCloud(){
   if(!confirm('Esto va a reemplazar lo que ves ahora por la última versión guardada en la nube. ¿Continuar?')) return;
   try{
     const value = await sheetsGet(currentUserEmail);
-    if(!value){ alert('No hay datos guardados en la nube para este mail.'); return; }
-    state = JSON.parse(value);
+    if(!value){
+      if(!confirm('No hay datos guardados en la nube para este mail (probablemente se haya borrado). ¿Reiniciar este navegador a un estado vacío igualmente?')) return;
+      seedDefault();
+    } else {
+      state = JSON.parse(value);
+    }
     migrateState();
+    // Importante: borramos también el respaldo local de este navegador. Si no,
+    // la próxima vez que se abra la app, ese respaldo viejo podría "resucitar"
+    // datos que ya no deberían existir.
+    try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+    await saveState();
     render();
     closeModal();
     showToast('Restaurado desde la nube');
@@ -1741,6 +1751,16 @@ function restoreFromLocalBackup(){
   saveState();
   closeModal();
   showToast('Restaurado desde la copia local');
+}
+/** Borra la copia de emergencia guardada en este navegador. Útil cuando se borraron
+    los datos de alguien a propósito y no queremos que esa copia los "resucite". */
+function clearLocalBackupNow(){
+  const raw = (()=>{ try{ return localStorage.getItem(STORAGE_KEY+'-backup'); }catch(e){ return null; } })();
+  if(!raw){ alert('Este navegador no tiene ninguna copia local guardada.'); return; }
+  if(!confirm('¿Borrar la copia local de respaldo de este navegador? No se puede deshacer.')) return;
+  try{ localStorage.removeItem(STORAGE_KEY+'-backup'); }catch(e){}
+  showToast('Copia local borrada');
+  closeModal();
 }
 
 function openHelp(){
