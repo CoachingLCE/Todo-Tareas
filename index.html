@@ -1170,7 +1170,8 @@ const SMART_LIST_RULES = [
   { match: /\bpelicula(s)?\b|\bfilm\b/, listName: '🎬 Películas', color:'#b3542f' },
   { match: /\bserie(s)?\b|\btemporada(s)?\b|\bepisodio(s)?\b/, listName: '📺 Series', color:'#c14f8f' },
   { match: /\bescuchar\b|\bpodcast(s)?\b/, listName: '🎧 Podcasts', color:'#2f9e5b' },
-  { match: /\bvideo(s)?\b|\byoutube\b/, listName: '🎥 Videos/YouTube', color:'#cc3333' }
+  { match: /\bvideo(s)?\b|\byoutube\b/, listName: '🎥 Videos/YouTube', color:'#cc3333' },
+  { match: /\bmedico(s)?\b|\bturno(s)?\b|\bdoctor(a)?\b|\bdentista\b|\bodontolog[oi](a)?\b|\boftalmolog[oi](a)?\b|\bvacuna(s)?\b|\bchequeo(s)?\b|\bclinico\b|\bcontrol medico\b/, listName: '🏥 Turnos Médicos', color:'#d6455c' }
 ];
 function detectSmartListOverride(text){
   const norm = normalize(text);
