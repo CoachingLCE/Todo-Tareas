@@ -153,6 +153,14 @@
   .task:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong);}
   .task.prio-alta{border-left-color:var(--high);}
   .task.is-favorite{background:var(--accent-bg);}
+  body.density-compact .task{padding:9px 12px;margin-bottom:6px;}
+  body.density-compact .task-meta{margin-top:3px;gap:5px;}
+  body.density-comfortable .task{padding:18px 20px;margin-bottom:12px;}
+  body.density-comfortable .task-meta{margin-top:9px;gap:9px;}
+  body.font-small .task-title{font-size:13px;}
+  body.font-small .badge,body.font-small .tag,body.font-small .date-badge{font-size:9px;}
+  body.font-large .task-title{font-size:16.5px;}
+  body.font-large .badge,body.font-large .tag,body.font-large .date-badge{font-size:11px;}
   .task.prio-media{border-left-color:var(--med);}
   .task.prio-baja{border-left-color:var(--low);}
   .task.done{opacity:.5;}
@@ -510,6 +518,7 @@
         <div class="header-actions">
           <button class="hbtn" onclick="openHelp()" title="Cómo funciona" aria-label="Cómo funciona"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 1.8-2.2 3.3M12 17h.01"/></svg></button>
           <button class="hbtn" onclick="openSyncStatusPanel()" title="Sincronización" aria-label="Sincronización"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17.5 19H9a5 5 0 1 1 1.03-9.9A6 6 0 0 1 21 11.5 4.5 4.5 0 0 1 17.5 19Z"/></svg></button>
+          <button class="hbtn" onclick="openSettingsPanel()" title="Configuración" aria-label="Configuración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></button>
           <button class="hbtn" id="select-mode-btn" onclick="toggleSelectMode()" title="Selección múltiple" aria-label="Selección múltiple"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg></button>
           <button class="hbtn" id="focus-mode-btn" onclick="toggleFocusMode()" title="Modo concentración" aria-label="Modo concentración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".5" fill="currentColor"/></svg></button>
           <button class="hbtn" id="pomodoro-btn" onclick="togglePomodoroPanel()" title="Pomodoro" aria-label="Pomodoro"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
@@ -583,6 +592,7 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
+const APP_VERSION = '1.14.0';
 
 /* =====================================================================
    ÍCONOS (SVG estilo Lucide, en vez de emojis, para una imagen más profesional)
@@ -771,6 +781,7 @@ async function loadState(){
   }
   migrateState();
   applyTheme();
+  applySettingsToDOM();
   render();
   attachSwipeHandlers();
   attachDashboardScrollListener();
@@ -800,6 +811,27 @@ function migrateState(){
   if(typeof state.darkMode !== 'boolean') state.darkMode = false;
   if(state.themeMode !== 'auto' && state.themeMode !== 'manual') state.themeMode = 'auto';
   if(typeof state.hideCompleted !== 'boolean') state.hideCompleted = false;
+  if(!state.settings) state.settings = {};
+  const defaultSettings = {
+    density: 'normal',          // 'normal' | 'compact'
+    fontSize: 'normal',         // 'small' | 'normal' | 'large'
+    smartHeaderScroll: false,   // header inteligente al hacer scroll (opt-in, ver nota)
+    showProgressBar: true,
+    showGreeting: true,
+    showDescriptions: true,
+    confirmBeforeDelete: false,
+    autoExpandNotes: false,
+    showReminders: true,
+    showSmartListToasts: true,
+    smartLists: { leer:true, peliculas:true, series:true, podcasts:true, videos:true, importantes:true, hoy:true, completadas:true }
+  };
+  Object.keys(defaultSettings).forEach(key=>{
+    if(state.settings[key] === undefined) state.settings[key] = defaultSettings[key];
+  });
+  if(!state.settings.smartLists) state.settings.smartLists = defaultSettings.smartLists;
+  Object.keys(defaultSettings.smartLists).forEach(key=>{
+    if(state.settings.smartLists[key] === undefined) state.settings.smartLists[key] = true;
+  });
   if(!state.focusSessions) state.focusSessions = [];
   if(typeof state.welcomeShown !== 'boolean'){
     // Si ya tenía tareas cargadas (usuario existente), no le mostramos el saludo de bienvenida.
@@ -968,6 +1000,16 @@ async function computeAutoDarkMode(){
     const isDaytime = nowUTC >= sunriseUTC && nowUTC < sunsetUTC;
     return !isDaytime;
   }catch(e){ return false; }
+}
+
+/** Aplica densidad de tarjetas y tamaño de fuente elegidos en Configuración. */
+function applySettingsToDOM(){
+  if(!state.settings) return;
+  document.body.classList.remove('density-compact','density-comfortable','font-small','font-large');
+  if(state.settings.density === 'compact') document.body.classList.add('density-compact');
+  if(state.settings.density === 'comfortable') document.body.classList.add('density-comfortable');
+  if(state.settings.fontSize === 'small') document.body.classList.add('font-small');
+  if(state.settings.fontSize === 'large') document.body.classList.add('font-large');
 }
 
 function applyTheme(){
@@ -1447,7 +1489,7 @@ function addTask(){
   updateMobilePrioDot();
   document.getElementById('smart-chips-preview').innerHTML = '';
   saveState(); render(); renderReminderBanner();
-  if(listRule) showToast(`Agregada a "${listRule.listName}"`);
+  if(listRule && state.settings.showSmartListToasts !== false) showToast(`Agregada a "${listRule.listName}"`);
   setTimeout(()=>{ justAddedTaskId = null; }, 400);
 }
 
@@ -1554,6 +1596,7 @@ function toggleTask(id){
 function deleteTask(id){
   const idx = state.tasks.findIndex(t=>t.id===id);
   if(idx === -1) return;
+  if(state.settings && state.settings.confirmBeforeDelete && !confirm('¿Eliminar esta tarea?')) return;
   haptic([20,40,20]);
   lastDeleted = { type:'task', data: state.tasks[idx] };
   const el = document.querySelector(`[data-task-id="${id}"]`);
@@ -1698,6 +1741,133 @@ function formatSyncTime(ts){
 }
 function localStorageWorks(){
   try{ localStorage.setItem('__test__','1'); localStorage.removeItem('__test__'); return true; }catch(e){ return false; }
+}
+
+/* =====================================================================
+   PANEL DE CONFIGURACIÓN
+   ===================================================================== */
+const SMART_LIST_TOGGLE_LABELS = {
+  leer:'📚 Leer', peliculas:'🎬 Películas', series:'📺 Series', podcasts:'🎧 Podcasts', videos:'🎥 Videos/YouTube',
+  importantes:'⭐ Importantes', hoy:'☀️ Hoy', completadas:'✅ Completadas'
+};
+function settingsToggleRow(label, key, checked, onchange){
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+    <span>${label}</span>
+    <input type="checkbox" ${checked?'checked':''} onchange="${onchange}" style="width:18px;height:18px;">
+  </div>`;
+}
+function openSettingsPanel(){
+  const s = state.settings;
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()" style="width:480px;">
+        <h2>⚙️ Configuración</h2>
+
+        <div class="field-label" style="margin-top:0;">📊 Listas inteligentes</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">Activá o desactivá cuáles ver en el sidebar.</div>
+        ${Object.keys(SMART_LIST_TOGGLE_LABELS).map(key=>
+          settingsToggleRow(SMART_LIST_TOGGLE_LABELS[key], key, s.smartLists[key], `updateSmartListSetting('${key}', this.checked)`)
+        ).join('')}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nota: "Papelera" no existe todavía como función en la app, así que no está en esta lista.</div>
+
+        <div class="field-label">🎨 Personalización visual</div>
+        <div style="font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);">
+          Tema: <select onchange="updateThemeSetting(this.value)" style="width:auto;display:inline-block;padding:4px 8px;">
+            <option value="auto" ${state.themeMode==='auto'?'selected':''}>Automático (según el sol)</option>
+            <option value="light" ${state.themeMode==='manual'&&!state.darkMode?'selected':''}>Claro</option>
+            <option value="dark" ${state.themeMode==='manual'&&state.darkMode?'selected':''}>Oscuro</option>
+          </select>
+        </div>
+        <div style="font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);">
+          Densidad de tarjetas: <select onchange="updateSetting('density', this.value)" style="width:auto;display:inline-block;padding:4px 8px;">
+            <option value="compact" ${s.density==='compact'?'selected':''}>Compacta</option>
+            <option value="normal" ${s.density==='normal'?'selected':''}>Normal</option>
+            <option value="comfortable" ${s.density==='comfortable'?'selected':''}>Cómoda</option>
+          </select>
+        </div>
+        <div style="font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);">
+          Tamaño de fuente: <select onchange="updateSetting('fontSize', this.value)" style="width:auto;display:inline-block;padding:4px 8px;">
+            <option value="small" ${s.fontSize==='small'?'selected':''}>Chica</option>
+            <option value="normal" ${s.fontSize==='normal'?'selected':''}>Normal</option>
+            <option value="large" ${s.fontSize==='large'?'selected':''}>Grande</option>
+          </select>
+        </div>
+        ${settingsToggleRow('Header compacto al hacer scroll <span style="color:var(--text-muted);font-size:11px;">(experimental)</span>', 'smartHeaderScroll', s.smartHeaderScroll, "updateSetting('smartHeaderScroll', this.checked)")}
+        ${settingsToggleRow('Mostrar barra de progreso', 'showProgressBar', s.showProgressBar, "updateSetting('showProgressBar', this.checked)")}
+        ${settingsToggleRow('Mostrar saludo', 'showGreeting', s.showGreeting, "updateSetting('showGreeting', this.checked)")}
+        ${settingsToggleRow('Mostrar descripciones', 'showDescriptions', s.showDescriptions, "updateSetting('showDescriptions', this.checked)")}
+
+        <div class="field-label">📝 Comportamiento</div>
+        ${settingsToggleRow('Confirmar antes de eliminar', 'confirmBeforeDelete', s.confirmBeforeDelete, "updateSetting('confirmBeforeDelete', this.checked)")}
+        ${settingsToggleRow('Mostrar tareas completadas por defecto', 'showCompletedDefault', !state.hideCompleted, "updateHideCompletedSetting(this.checked)")}
+        ${settingsToggleRow('Expandir automáticamente tareas con descripción', 'autoExpandNotes', s.autoExpandNotes, "updateSetting('autoExpandNotes', this.checked)")}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">"Recordar filtros" y "Abrir la última lista utilizada" ya funcionan solos: la app siempre vuelve a la vista donde la dejaste.</div>
+
+        <div class="field-label">🔔 Notificaciones</div>
+        ${settingsToggleRow('Recordatorios y avisos de vencidas', 'showReminders', s.showReminders, "updateSetting('showReminders', this.checked)")}
+        ${settingsToggleRow('Avisos inteligentes (ej: "Agregada a Series")', 'showSmartListToasts', s.showSmartListToasts, "updateSetting('showSmartListToasts', this.checked)")}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">El "resumen diario" es la tarjeta de arriba de todo (Mi día) — se controla con "Mostrar saludo" y "Mostrar barra de progreso".</div>
+
+        <div class="field-label">💾 Datos</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn" onclick="exportTasksJSON()">⬇️ Exportar tareas (.json)</button>
+          <button class="btn" onclick="closeModal();openImport()">⬆️ Importar tareas</button>
+          <button class="btn" onclick="exportTasksJSON()">💾 Crear copia de seguridad</button>
+          <label class="btn" style="text-align:center;cursor:pointer;">📤 Restaurar copia
+            <input type="file" accept=".json" onchange="restoreFromFile(this)" style="display:none;">
+          </label>
+        </div>
+
+        <div class="field-label">¿Querés ayudar a mejorar la app?</div>
+        <button class="btn primary" style="width:100%;" onclick="alert('¡Gracias por las ganas! Todavía no configuramos un medio de pago — si querés colaborar, avisale a Diego directamente.')">☕ Invitar un cafecito</button>
+
+        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:18px;">
+          Versión ${APP_VERSION}<br>Creado por Diego Lerner · diegolernerdl@gmail.com
+        </div>
+
+        <div class="modal-actions">
+          <div></div>
+          <div class="right"><button class="btn primary" onclick="closeModal()">Cerrar</button></div>
+        </div>
+      </div>
+    </div>`;
+}
+function updateSetting(key, value){
+  state.settings[key] = value;
+  if(key==='smartHeaderScroll' && !value){ isHeaderCompact = false; applyHeaderCompactClasses(); }
+  saveState(); render(); applySettingsToDOM();
+}
+function updateSmartListSetting(key, value){ state.settings.smartLists[key] = value; saveState(); render(); }
+function updateHideCompletedSetting(showCompleted){ state.hideCompleted = !showCompleted; saveState(); render(); }
+function updateThemeSetting(value){
+  if(value==='auto'){ state.themeMode = 'auto'; applyAutoThemeIfNeeded(); }
+  else { state.themeMode = 'manual'; state.darkMode = (value==='dark'); applyTheme(); saveState(); }
+}
+function exportTasksJSON(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `mis-tareas-backup-${todayISO()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Copia descargada');
+}
+function restoreFromFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(!confirm('Esto va a reemplazar todo lo que ves ahora por el contenido del archivo. ¿Continuar?')) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      state = JSON.parse(reader.result);
+      migrateState();
+      render();
+      saveState();
+      closeModal();
+      showToast('Datos restaurados desde el archivo');
+    }catch(e){ alert('El archivo no es un backup válido de esta app.'); }
+  };
+  reader.readAsText(file);
 }
 
 async function openSyncStatusPanel(){
@@ -2344,6 +2514,10 @@ function acceptAISubtasks(taskId, suggestions){
    RECORDATORIOS
    ===================================================================== */
 function renderReminderBanner(){
+  if(state.settings && state.settings.showReminders === false){
+    document.getElementById('reminder-banner-container').innerHTML = '';
+    return;
+  }
   const t0 = new Date();
   const due = state.tasks.filter(t=>{
     if(t.done || !t.dueDate) return false;
@@ -2683,12 +2857,13 @@ function renderSidebar(){
   const upcomingCount = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate > t0).length;
   const impCount = state.tasks.filter(t=>!t.done && t.priority==='alta').length;
   const favCount = state.tasks.filter(t=>!t.done && t.favorite).length;
+  const sl = state.settings ? state.settings.smartLists : {};
   smart.innerHTML = `
-    <div class="nav-item ${state.currentView.type==='today'?'active':''}" onclick="selectView('today', null)"><span class="nav-icon">${icon('sun')}</span><span>Mi día</span><span class="count">${todayCount||''}</span></div>
+    ${sl.hoy!==false ? `<div class="nav-item ${state.currentView.type==='today'?'active':''}" onclick="selectView('today', null)"><span class="nav-icon">${icon('sun')}</span><span>Mi día</span><span class="count">${todayCount||''}</span></div>` : ''}
     <div class="nav-item ${state.currentView.type==='upcoming'?'active':''}" onclick="selectView('upcoming', null)"><span class="nav-icon">${icon('clipboard')}</span><span>Próximos</span><span class="count">${upcomingCount||''}</span></div>
     <div class="nav-item mobile-only-nav ${state.currentView.type==='filter'&&state.currentView.id==='overdue'?'active':''}" onclick="selectView('filter','overdue')"><span class="nav-icon">${icon('clock')}</span><span>Vencidas</span></div>
     <div class="mobile-collapsible-nav" id="mobile-collapsible-nav">
-      <div class="nav-item ${state.currentView.type==='important'?'active':''}" onclick="selectView('important', null)"><span class="nav-icon">${icon('star')}</span><span>Importantes</span><span class="count">${impCount||''}</span></div>
+      ${sl.importantes!==false ? `<div class="nav-item ${state.currentView.type==='important'?'active':''}" onclick="selectView('important', null)"><span class="nav-icon">${icon('star')}</span><span>Importantes</span><span class="count">${impCount||''}</span></div>` : ''}
       <div class="nav-item ${state.currentView.type==='favorites'?'active':''}" onclick="selectView('favorites', null)"><span class="nav-icon">⭐</span><span>Favoritos</span><span class="count">${favCount||''}</span></div>
       <div class="nav-item ${state.currentView.type==='calendar'?'active':''}" onclick="selectView('calendar', null)"><span class="nav-icon">${icon('calendar')}</span><span>Calendario</span></div>
       <div class="nav-item ${state.currentView.type==='stats'?'active':''}" onclick="selectView('stats', null)"><span class="nav-icon">${icon('barChart')}</span><span>Estadísticas</span></div>
@@ -2704,16 +2879,20 @@ function renderSidebar(){
   document.getElementById('filters-toggle').classList.toggle('collapsed', filtersCollapsed);
   const qf = document.getElementById('quick-filters');
   qf.className = 'section-body' + (filtersCollapsed ? ' collapsed' : '');
-  qf.innerHTML = QUICK_FILTERS.map(f=>{
+  qf.innerHTML = QUICK_FILTERS.filter(f=> f.id!=='completed' || sl.completadas!==false).map(f=>{
     const active = state.currentView.type==='filter' && state.currentView.id===f.id;
     return `<div class="nav-item ${active?'active':''}" onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
   }).join('');
 
+  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '🎥 videos/youtube':'videos' };
   const listsCollapsed = !!collapsedSections.lists;
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
   const listsEl = document.getElementById('lists');
   listsEl.className = 'section-body' + (listsCollapsed ? ' collapsed' : '');
-  listsEl.innerHTML = state.lists.map(l=>{
+  listsEl.innerHTML = state.lists.filter(l=>{
+    const key = SMART_LIST_NAME_TO_KEY[normalize(l.name)];
+    return !key || sl[key] !== false;
+  }).map(l=>{
     const count = state.tasks.filter(t=>t.listId===l.id && !t.done).length;
     const active = state.currentView.type==='list' && state.currentView.id===l.id;
     return `<div class="list-row ${active?'active':''}" draggable="true" data-list-id="${l.id}"
@@ -2822,17 +3001,17 @@ function renderDayProgress(){
 
   document.getElementById('day-progress-container').innerHTML = `
     <div class="day-progress-card ${isHeaderCompact?'compact':''}">
-      <div class="dpc-greeting dpc-collapsible">${greeting}.</div>
+      ${state.settings.showGreeting ? `<div class="dpc-greeting dpc-collapsible">${greeting}.</div>` : ''}
       <div class="dpc-hero dpc-collapsible">
         <div class="dpc-hero-item"><div class="num">${pendingToday.length}</div><div class="label">tarea${pendingToday.length===1?'':'s'} hoy</div></div>
         <div class="dpc-hero-item"><div class="num" style="color:${highTodayCount>0?'var(--high)':'inherit'}">${highTodayCount}</div><div class="label">importante${highTodayCount===1?'':'s'}</div></div>
         <div class="dpc-hero-item"><div class="num" style="color:${overdueCount>0?'var(--high)':'inherit'}">${overdueCount}</div><div class="label">vencida${overdueCount===1?'':'s'}</div></div>
         <div class="dpc-hero-item"><div class="num" style="color:${doneToday>0?'var(--success)':'inherit'}">${doneToday}</div><div class="label">completada${doneToday===1?'':'s'}</div></div>
       </div>
-      <div class="dpc-progress-row dpc-collapsible">
+      ${state.settings.showProgressBar ? `<div class="dpc-progress-row dpc-collapsible">
         <div class="dpc-collapsible" style="flex:1;display:flex;">${barsHtml}</div>
         <span class="dpc-progress-pct">${pct}%</span>
-      </div>
+      </div>` : ''}
       <div class="dpc-msg dpc-collapsible">${pickSmartMessage(pendingToday.length, overdueCount, streak)}</div>
       ${tomorrowCount>0 ? `<div class="dpc-collapsible" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--text-2);">
         <span>${icon('calendarDays',14)} Para mañana ya tenés ${tomorrowCount} tarea${tomorrowCount===1?'':'s'} programada${tomorrowCount===1?'':'s'}.</span>
@@ -2870,6 +3049,7 @@ function applyHeaderCompactClasses(){
   if(btn) btn.classList.toggle('compact', isHeaderCompact);
 }
 function onMainScrollForHeader(){
+  if(!state.settings || !state.settings.smartHeaderScroll) return;
   if(headerScrollRaf) return;
   headerScrollRaf = true;
   requestAnimationFrame(()=>{
@@ -3054,7 +3234,8 @@ function renderYoutubeCard(t){
 
 function renderTaskCard(t){
   const list = state.lists.find(l=>l.id===t.listId);
-  const isExpanded = !!expanded[t.id];
+  const autoExpand = state.settings.autoExpandNotes && t.notes && expanded[t.id]===undefined;
+  const isExpanded = autoExpand || !!expanded[t.id];
   const subDoneCount = t.subtasks.filter(s=>s.done).length;
   const subPct = t.subtasks.length ? Math.round((subDoneCount/t.subtasks.length)*100) : 0;
   const dateInfo = dateLabelFor(t.dueDate, t.done);
@@ -3102,7 +3283,7 @@ function renderTaskCard(t){
               <input type="text" id="tag-input-${t.id}" placeholder="Nueva etiqueta" onkeydown="if(event.key==='Enter')addTag('${t.id}')">
               <button onclick="addTag('${t.id}')">Etiquetar</button>
             </div>
-            ${t.notes ? `<div style="font-size:12px;color:var(--text-2);margin-top:9px;white-space:pre-wrap;">${escapeHtml(t.notes)}</div>` : ''}
+            ${t.notes && state.settings.showDescriptions ? `<div style="font-size:12px;color:var(--text-2);margin-top:9px;white-space:pre-wrap;">${escapeHtml(t.notes)}</div>` : ''}
             <div style="font-size:11px;color:var(--text-muted);margin-top:9px;">🕐 ${formatCreatedWhen(t)}</div>
             <button class="expand-btn" onclick="toggleExpand('${t.id}')">Ocultar</button>
           </div>
