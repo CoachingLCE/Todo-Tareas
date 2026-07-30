@@ -64,7 +64,9 @@
   .list-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;color:var(--text-2);transition:background .12s;}
   .list-row:hover{background:var(--bg);}
   .list-row.active{background:var(--accent-bg);color:var(--accent-strong);font-weight:600;}
-  .list-row .dot{width:7px;height:7px;border-radius:50%;margin-right:9px;display:inline-block;flex-shrink:0;}
+  .list-row .dot{width:7px;height:7px;border-radius:50%;margin-right:0;display:inline-block;flex-shrink:0;}
+  .list-row-empty{opacity:.5;}
+  .list-row-empty:hover{opacity:.8;}
   .list-row.dragging{opacity:.4;}
   .list-row.drag-over{box-shadow:inset 0 2px 0 var(--accent);}
   .list-row-inner{display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -837,18 +839,29 @@ function migrateState(){
     // Si ya tenía tareas cargadas (usuario existente), no le mostramos el saludo de bienvenida.
     state.welcomeShown = state.tasks.length > 0;
   }
+  // Renombrar listas existentes para agregarles emoji (sin duplicar, se ejecuta una sola vez por lista).
+  const renameRules = [
+    { test: l=> normalize(l.name)==='personal', name:'👤 Personal' },
+    { test: l=> normalize(l.name)==='compras', name:'🛒 Compras' },
+    { test: l=> normalize(l.name).includes('agenda') && !l.name.includes('📅'), name:'📅 Agenda' },
+    { test: l=> normalize(l.name).includes('videos') && normalize(l.name).includes('youtube') && l.name.includes('🎥'), name:'▶️ Videos/YouTube' }
+  ];
+  renameRules.forEach(rule=>{
+    const list = state.lists.find(rule.test);
+    if(list) list.name = rule.name;
+  });
   if(!state.lists.some(l=> normalize(l.name)==='ilce')){
     state.lists.push({ id: uid(), name:'ILCE', color:'#8a5fd6' });
   }
-  if(!state.lists.some(l=> normalize(l.name)==='agenda')){
-    state.lists.push({ id: uid(), name:'Agenda', color:'#dd9012' });
+  if(!state.lists.some(l=> normalize(l.name).includes('agenda'))){
+    state.lists.push({ id: uid(), name:'📅 Agenda', color:'#dd9012' });
   }
   const contentCategories = [
     { name:'📚 Leer', color:'#8b5e3c' },
     { name:'🎬 Películas', color:'#b3542f' },
     { name:'📺 Series', color:'#c14f8f' },
     { name:'🎧 Podcasts', color:'#2f9e5b' },
-    { name:'🎥 Videos/YouTube', color:'#cc3333' },
+    { name:'▶️ Videos/YouTube', color:'#cc3333' },
     { name:'🏥 Turnos Médicos', color:'#d6455c' }
   ];
   contentCategories.forEach(cat=>{
@@ -879,15 +892,15 @@ function seedDefault(){
   const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid(), l5 = uid(), l6 = uid(), l7 = uid(), l8 = uid(), l9 = uid(), l10 = uid();
   state = {
     lists: [
-      {id:l1, name:'Personal', color:'#3b6bf0'},
-      {id:l2, name:'Compras', color:'#3f95a8'},
+      {id:l1, name:'👤 Personal', color:'#3b6bf0'},
+      {id:l2, name:'🛒 Compras', color:'#3f95a8'},
       {id:l3, name:'ILCE', color:'#8a5fd6'},
-      {id:l4, name:'Agenda', color:'#dd9012'},
+      {id:l4, name:'📅 Agenda', color:'#dd9012'},
       {id:l5, name:'📚 Leer', color:'#8b5e3c'},
       {id:l6, name:'🎬 Películas', color:'#b3542f'},
       {id:l7, name:'📺 Series', color:'#c14f8f'},
       {id:l8, name:'🎧 Podcasts', color:'#2f9e5b'},
-      {id:l9, name:'🎥 Videos/YouTube', color:'#cc3333'},
+      {id:l9, name:'▶️ Videos/YouTube', color:'#cc3333'},
       {id:l10, name:'🏥 Turnos Médicos', color:'#d6455c'}
     ],
     tasks: [],
@@ -1214,7 +1227,7 @@ const SMART_LIST_RULES = [
   { match: /\bpelicula(s)?\b|\bfilm\b/, listName: '🎬 Películas', color:'#b3542f' },
   { match: /\bserie(s)?\b|\btemporada(s)?\b|\bepisodio(s)?\b/, listName: '📺 Series', color:'#c14f8f' },
   { match: /\bescuchar\b|\bpodcast(s)?\b/, listName: '🎧 Podcasts', color:'#2f9e5b' },
-  { match: /\bvideo(s)?\b|\byoutube\b/, listName: '🎥 Videos/YouTube', color:'#cc3333' },
+  { match: /\bvideo(s)?\b|\byoutube\b/, listName: '▶️ Videos/YouTube', color:'#cc3333' },
   { match: /\bmedico(s)?\b|\bturno(s)?\b|\bdoctor(a)?\b|\bdentista\b|\bodontolog[oi](a)?\b|\boftalmolog[oi](a)?\b|\bvacuna(s)?\b|\bchequeo(s)?\b|\bclinico\b|\bcontrol medico\b/, listName: '🏥 Turnos Médicos', color:'#d6455c' }
 ];
 function detectSmartListOverride(text){
@@ -1422,10 +1435,10 @@ function findSimilarTask(title, excludeId){
    ===================================================================== */
 /** Devuelve el id de la lista "Personal" (o la primera disponible); la crea si no existe ninguna. */
 function getOrCreatePersonalListId(){
-  let list = state.lists.find(l=> normalize(l.name)==='personal');
+  let list = state.lists.find(l=> normalize(l.name).includes('personal'));
   if(!list) list = state.lists[0];
   if(!list){
-    list = { id: uid(), name:'Personal', color:'#3b6bf0' };
+    list = { id: uid(), name:'👤 Personal', color:'#3b6bf0' };
     state.lists.push(list);
   }
   return list.id;
@@ -1747,7 +1760,7 @@ function localStorageWorks(){
    PANEL DE CONFIGURACIÓN
    ===================================================================== */
 const SMART_LIST_TOGGLE_LABELS = {
-  leer:'📚 Leer', peliculas:'🎬 Películas', series:'📺 Series', podcasts:'🎧 Podcasts', videos:'🎥 Videos/YouTube',
+  leer:'📚 Leer', peliculas:'🎬 Películas', series:'📺 Series', podcasts:'🎧 Podcasts', videos:'▶️ Videos/YouTube',
   importantes:'⭐ Importantes', hoy:'☀️ Hoy', completadas:'✅ Completadas'
 };
 function settingsToggleRow(label, key, checked, onchange){
@@ -2471,7 +2484,7 @@ async function aiAction(taskId, action){
       const text = await callClaude(`Tarea: "${t.title}". Si el título hace referencia a consumir contenido (leer un libro, ver una película, ver una serie, escuchar un podcast, o ver un video/YouTube), identificá de qué se trata usando tu conocimiento general (por ejemplo, si es un título de película o serie conocida) y respondé ÚNICAMENTE con una de estas palabras exactas: leer, pelicula, serie, podcast, video, ninguna.`, 10);
       const catMatch = normalize(text).match(/leer|pelicula|serie|podcast|video|ninguna/);
       const catKey = catMatch ? catMatch[0] : 'ninguna';
-      const catMap = { leer:'📚 Leer', pelicula:'🎬 Películas', serie:'📺 Series', podcast:'🎧 Podcasts', video:'🎥 Videos/YouTube' };
+      const catMap = { leer:'📚 Leer', pelicula:'🎬 Películas', serie:'📺 Series', podcast:'🎧 Podcasts', video:'▶️ Videos/YouTube' };
       const suggestedList = catMap[catKey];
       box.innerHTML = suggestedList
         ? `<div class="ai-result-box">Categoría sugerida: <strong>${suggestedList}</strong>
@@ -2597,7 +2610,7 @@ function addToToday(taskId){
    IMPORTACIÓN MASIVA
    ===================================================================== */
 function openImport(){
-  const listOptions = state.lists.map(l=>`<option value="${l.id}" ${normalize(l.name)==='agenda'?'selected':''}>${escapeHtml(l.name)}</option>`).join('');
+  const listOptions = state.lists.map(l=>`<option value="${l.id}" ${normalize(l.name).includes('agenda')?'selected':''}>${escapeHtml(l.name)}</option>`).join('');
   document.getElementById('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal-box" onclick="event.stopPropagation()">
@@ -2884,7 +2897,7 @@ function renderSidebar(){
     return `<div class="nav-item ${active?'active':''}" onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
   }).join('');
 
-  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '🎥 videos/youtube':'videos' };
+  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos' };
   const listsCollapsed = !!collapsedSections.lists;
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
   const listsEl = document.getElementById('lists');
@@ -2895,13 +2908,13 @@ function renderSidebar(){
   }).map(l=>{
     const count = state.tasks.filter(t=>t.listId===l.id && !t.done).length;
     const active = state.currentView.type==='list' && state.currentView.id===l.id;
-    return `<div class="list-row ${active?'active':''}" draggable="true" data-list-id="${l.id}"
+    return `<div class="list-row ${active?'active':''} ${count===0?'list-row-empty':''}" draggable="true" data-list-id="${l.id}"
       ondragstart="onListDragStart(event,'${l.id}')" ondragover="onListDragOver(event)"
       ondragleave="onListDragLeave(event)" ondrop="onListDrop(event,'${l.id}')" ondragend="onListDragEnd(event)"
       onclick="selectView('list','${l.id}')">
-      <span class="list-row-inner"><span class="dot" style="background:${l.color}"></span>${escapeHtml(l.name)}</span>
+      <span class="list-row-inner">${escapeHtml(l.name)}</span>
       <span style="display:flex;align-items:center;gap:6px;">
-        <span class="count">${count||''}</span>
+        ${count>0 ? `<span class="dot" style="background:${l.color}"></span><span class="count">${count}</span>` : ''}
         <span class="del-list-btn" onclick="deleteList('${l.id}', event)">✕</span>
       </span>
     </div>`;
