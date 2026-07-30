@@ -2492,6 +2492,7 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 }
 
 function renderDayProgress(){
+  if(state.currentView.type === 'list'){ renderListSummary(state.currentView.id); return; }
   const t0 = todayISO();
   const tmr = tomorrowISO();
   const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
@@ -2619,8 +2620,33 @@ function renderMobileStatsStrip(){
     <span><strong>${todayCount}</strong> para hoy</span>`;
 }
 
+/** Panel simple para cuando se está viendo una lista específica (no el dashboard global del día). */
+function renderListSummary(listId){
+  const list = state.lists.find(l=>l.id===listId);
+  const tasks = state.tasks.filter(t=>t.listId===listId);
+  const pending = tasks.filter(t=>!t.done).length;
+  const done = tasks.filter(t=>t.done).length;
+  const total = tasks.length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  const color = list ? list.color : 'var(--accent)';
+  document.getElementById('day-progress-container').innerHTML = `
+    <div class="day-progress-card list-summary-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+        <span style="font-size:15px;font-weight:700;">${escapeHtml(list?list.name:'')}</span>
+        <span style="margin-left:auto;font-size:13px;font-weight:600;color:var(--accent-strong);">${pct}%</span>
+      </div>
+      <div class="dpc-progress-wrap"><div class="dpc-progress-bar" style="width:${pct}%;background:${color};"></div></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:9px;">
+        ${pending} pendiente${pending===1?'':'s'} · ${done} completada${done===1?'':'s'} · ${total} en total
+      </div>
+    </div>`;
+}
+
 function renderOrganizeButton(){
-  document.getElementById('organize-day-container').innerHTML = `
+  const container = document.getElementById('organize-day-container');
+  if(state.currentView.type === 'list'){ container.innerHTML = ''; return; }
+  container.innerHTML = `
     <button class="organize-btn ${isHeaderCompact?'compact':''}" onclick="organizeMyDay()">${icon('sparkles',18)} Organizar mi día</button>`;
 }
 
