@@ -805,7 +805,8 @@ function migrateState(){
     { name:'🎬 Películas', color:'#b3542f' },
     { name:'📺 Series', color:'#c14f8f' },
     { name:'🎧 Podcasts', color:'#2f9e5b' },
-    { name:'🎥 Videos/YouTube', color:'#cc3333' }
+    { name:'🎥 Videos/YouTube', color:'#cc3333' },
+    { name:'🏥 Turnos Médicos', color:'#d6455c' }
   ];
   contentCategories.forEach(cat=>{
     if(!state.lists.some(l=> normalize(l.name)===normalize(cat.name))){
@@ -827,7 +828,7 @@ function migrateState(){
 }
 
 function seedDefault(){
-  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid(), l5 = uid(), l6 = uid(), l7 = uid(), l8 = uid(), l9 = uid();
+  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid(), l5 = uid(), l6 = uid(), l7 = uid(), l8 = uid(), l9 = uid(), l10 = uid();
   state = {
     lists: [
       {id:l1, name:'Personal', color:'#3b6bf0'},
@@ -838,7 +839,8 @@ function seedDefault(){
       {id:l6, name:'🎬 Películas', color:'#b3542f'},
       {id:l7, name:'📺 Series', color:'#c14f8f'},
       {id:l8, name:'🎧 Podcasts', color:'#2f9e5b'},
-      {id:l9, name:'🎥 Videos/YouTube', color:'#cc3333'}
+      {id:l9, name:'🎥 Videos/YouTube', color:'#cc3333'},
+      {id:l10, name:'🏥 Turnos Médicos', color:'#d6455c'}
     ],
     tasks: [],
     currentView: {type:'list', id:l1},
@@ -1151,6 +1153,60 @@ function getOrCreateListByName(name, color){
   return list;
 }
 
+/* =====================================================================
+   RECOMENDACIONES PREVENTIVAS (lista Turnos Médicos vacía)
+   ===================================================================== */
+const MEDICAL_RECOMMENDATIONS = [
+  { icon:'🩺', question:'¿Hace cuánto no visitás a tu médico clínico?', desc:'Se recomienda realizar un control médico general al menos una vez al año.', title:'Control médico clínico', years:1 },
+  { icon:'🦷', question:'¿Hace más de 6 meses que no vas al odontólogo?', desc:'Un control periódico ayuda a prevenir problemas bucales.', title:'Control odontológico', months:6 },
+  { icon:'👁️', question:'¿Cuándo fue tu último control oftalmológico?', desc:'Especialmente importante si usás anteojos o pasás muchas horas frente a pantallas.', title:'Control oftalmológico', years:1 },
+  { icon:'❤️', question:'¿Hace más de un año que no realizás un chequeo general?', desc:'Podés programar un control preventivo para cuidar tu salud.', title:'Chequeo general preventivo', years:1 },
+  { icon:'💉', question:'¿Tenés vacunas o controles preventivos pendientes?', desc:'', title:'Vacunas / controles pendientes', years:null }
+];
+function isMedicalList(list){ return list && normalize(list.name).includes('turnos medicos'); }
+function renderMedicalRecommendations(listId){
+  return `
+    <div class="task-group-label">Recomendaciones</div>
+    ${MEDICAL_RECOMMENDATIONS.map((rec,i)=>`
+      <div class="task" style="cursor:default;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="font-size:20px;flex-shrink:0;">${rec.icon}</span>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:13.5px;">${escapeHtml(rec.question)}</div>
+            ${rec.desc ? `<div style="font-size:12px;color:var(--text-muted);margin-top:3px;">${escapeHtml(rec.desc)}</div>` : ''}
+          </div>
+          <button class="btn primary" style="font-size:12px;padding:7px 14px;flex-shrink:0;" onclick="scheduleMedicalAppointment('${listId}', ${i})">Agendar turno</button>
+        </div>
+      </div>`).join('')}
+  `;
+}
+/** Agenda un turno preventivo. Si es recurrente (años/meses), agrega también la próxima ocurrencia. */
+function scheduleMedicalAppointment(listId, idx){
+  const rec = MEDICAL_RECOMMENDATIONS[idx];
+  if(!rec) return;
+  let recurrence = null;
+  if(rec.years) recurrence = { type:'every_x_years', interval: rec.years };
+  else if(rec.months) recurrence = { type:'every_x_months', interval: rec.months };
+
+  let maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===listId).map(t=>t.order||0));
+  maxOrder++;
+  const firstTask = {
+    id: uid(), listId, title: rec.title, done:false, priority:'media', tags:['salud'], subtasks:[],
+    notes: rec.desc||'', dueDate: todayISO(), createdAt: Date.now(), completedAt:null, order:maxOrder,
+    recurrence, reminderDaysBefore:null, reminders: recurrence ? [7] : []
+  };
+  state.tasks.push(firstTask);
+  let added = 1;
+  if(recurrence){
+    const nextDate = computeNextDueDate(firstTask);
+    maxOrder++;
+    state.tasks.push({ ...firstTask, id: uid(), dueDate: nextDate, order:maxOrder });
+    added = 2;
+  }
+  saveState(); render();
+  showToast(added===2 ? `Se agendaron 2 turnos: "${rec.title}"` : `Turno agendado: "${rec.title}"`);
+}
+
 function detectSmartChips(text){
   const norm = normalize(text);
   let clean = text;
@@ -1343,6 +1399,8 @@ function computeNextDueDate(task){
   else if(r.type === 'weekly') d.setDate(d.getDate()+7);
   else if(r.type === 'monthly') d.setMonth(d.getMonth()+1);
   else if(r.type === 'every_x') d.setDate(d.getDate()+(r.interval||1));
+  else if(r.type === 'every_x_months') d.setMonth(d.getMonth()+(r.interval||1));
+  else if(r.type === 'every_x_years') d.setFullYear(d.getFullYear()+(r.interval||1));
   return toISO(d);
 }
 
@@ -1816,11 +1874,13 @@ function openEditModal(taskId){
           <option value="weekly" ${r&&r.type==='weekly'?'selected':''}>Semanalmente</option>
           <option value="monthly" ${r&&r.type==='monthly'?'selected':''}>Mensualmente</option>
           <option value="every_x" ${r&&r.type==='every_x'?'selected':''}>Cada X días</option>
+          <option value="every_x_months" ${r&&r.type==='every_x_months'?'selected':''}>Cada X meses</option>
+          <option value="every_x_years" ${r&&r.type==='every_x_years'?'selected':''}>Cada X años</option>
         </select>
-        <div class="recur-extra" id="recur-extra-wrap" style="display:${r&&r.type==='every_x'?'flex':'none'}">
+        <div class="recur-extra" id="recur-extra-wrap" style="display:${r&&(r.type==='every_x'||r.type==='every_x_months'||r.type==='every_x_years')?'flex':'none'}">
           <span style="font-size:12px;color:var(--text-muted)">Cada</span>
           <input type="number" id="edit-recur-interval" min="1" style="width:60px" value="${r&&r.interval?r.interval:2}">
-          <span style="font-size:12px;color:var(--text-muted)">días</span>
+          <span style="font-size:12px;color:var(--text-muted)" id="edit-recur-unit-label">${r&&r.type==='every_x_months'?'meses':r&&r.type==='every_x_years'?'años':'días'}</span>
         </div>
         <div class="field-label">Recordatorios (días antes de vencer)</div>
         <div id="edit-reminders-list">
@@ -1855,7 +1915,10 @@ function openEditModal(taskId){
 }
 function onRecurrenceChange(){
   const val = document.getElementById('edit-recurrence').value;
-  document.getElementById('recur-extra-wrap').style.display = val==='every_x' ? 'flex' : 'none';
+  const needsInterval = val==='every_x' || val==='every_x_months' || val==='every_x_years';
+  document.getElementById('recur-extra-wrap').style.display = needsInterval ? 'flex' : 'none';
+  const unitLabel = document.getElementById('edit-recur-unit-label');
+  if(unitLabel) unitLabel.innerText = val==='every_x_months' ? 'meses' : val==='every_x_years' ? 'años' : 'días';
 }
 function addReminderRow(){
   const list = document.getElementById('edit-reminders-list');
@@ -1889,7 +1952,7 @@ function saveEditModal(taskId){
   t.estimatedMinutes = parseInt(document.getElementById('edit-estimate').value) || null;
   const recType = document.getElementById('edit-recurrence').value;
   if(!recType) t.recurrence = null;
-  else if(recType==='every_x') t.recurrence = {type:'every_x', interval: parseInt(document.getElementById('edit-recur-interval').value)||1};
+  else if(recType==='every_x'||recType==='every_x_months'||recType==='every_x_years') t.recurrence = {type: recType, interval: parseInt(document.getElementById('edit-recur-interval').value)||1};
   else t.recurrence = {type: recType};
   const reminderInputs = document.querySelectorAll('#edit-reminders-list input[type=number]');
   t.reminders = Array.from(reminderInputs).map(i=>parseInt(i.value)||0);
@@ -2785,7 +2848,8 @@ function renderTaskCard(t){
   const subDoneCount = t.subtasks.filter(s=>s.done).length;
   const subPct = t.subtasks.length ? Math.round((subDoneCount/t.subtasks.length)*100) : 0;
   const dateInfo = dateLabelFor(t.dueDate, t.done);
-  const recurLabel = t.recurrence ? (t.recurrence.type==='daily'?'🔁 diaria':t.recurrence.type==='weekly'?'🔁 semanal':t.recurrence.type==='monthly'?'🔁 mensual':`🔁 cada ${t.recurrence.interval}d`) : '';
+  const recurLabel = t.recurrence ? (t.recurrence.type==='daily'?'🔁 diaria':t.recurrence.type==='weekly'?'🔁 semanal':t.recurrence.type==='monthly'?'🔁 mensual':
+    t.recurrence.type==='every_x_months'?`🔁 cada ${t.recurrence.interval}m`:t.recurrence.type==='every_x_years'?`🔁 cada ${t.recurrence.interval}a`:`🔁 cada ${t.recurrence.interval}d`) : '';
   const isSelected = selectedIds.has(t.id);
   const prioClass = t.priority ? 'prio-'+t.priority : '';
 
@@ -3217,7 +3281,12 @@ function render(){
 
   let html = '';
   if(pending.length===0 && done.length===0){
-    html = '<div class="empty">No hay tareas todavía. Agregá una arriba.</div>';
+    const currentList = v.type==='list' ? state.lists.find(l=>l.id===v.id) : null;
+    if(isMedicalList(currentList)){
+      html = renderMedicalRecommendations(currentList.id);
+    } else {
+      html = '<div class="empty">No hay tareas todavía. Agregá una arriba.</div>';
+    }
   } else {
     if(pending.length) html += pending.map(renderTaskCard).join('');
     if(done.length && !state.hideCompleted){
