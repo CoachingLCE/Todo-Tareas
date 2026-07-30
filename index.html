@@ -1341,17 +1341,28 @@ function detectSmartChips(text){
       }
     }
     if(!matchedPastWeekday){
+      const nextWeekQualifier = /\bsemana que viene\b|\bproxima semana\b|\bsemana proxima\b|\bsemana entrante\b/.test(norm);
       for(let i=0;i<WEEKDAYS.length;i++){
         const wd = WEEKDAYS[i];
         const re = new RegExp('\\b'+wd+'\\b');
         if(re.test(norm)){
-          const d = new Date(today);
-          let diff = (i - d.getDay() + 7) % 7;
-          if(diff === 0) diff = 7;
-          d.setDate(d.getDate()+diff);
-          date = toISO(d); dateLabel = wd;
+          let d;
+          if(nextWeekQualifier){
+            // "de la semana que viene": ir al domingo de la próxima semana calendario y sumar el offset del día
+            const dow = today.getDay();
+            const thisWeekStart = new Date(today); thisWeekStart.setDate(today.getDate() - dow);
+            const nextWeekStart = new Date(thisWeekStart); nextWeekStart.setDate(thisWeekStart.getDate()+7);
+            d = new Date(nextWeekStart); d.setDate(nextWeekStart.getDate()+i);
+          } else {
+            d = new Date(today);
+            let diff = (i - d.getDay() + 7) % 7;
+            if(diff === 0) diff = 7;
+            d.setDate(d.getDate()+diff);
+          }
+          date = toISO(d); dateLabel = nextWeekQualifier ? `${wd} de la semana que viene` : wd;
           const origRe = new RegExp('\\b'+wd.replace('miercoles','mi[ée]rcoles').replace('sabado','s[áa]bado')+'\\b','i');
           clean = clean.replace(origRe, '');
+          if(nextWeekQualifier) clean = clean.replace(/\bde la semana que viene\b|\bde la proxima semana\b|\bde la semana proxima\b|\bde la semana entrante\b|\bsemana que viene\b|\bproxima semana\b|\bsemana proxima\b|\bsemana entrante\b/i, '');
           break;
         }
       }
