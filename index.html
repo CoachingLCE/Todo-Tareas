@@ -1768,6 +1768,7 @@ function openEditModal(taskId){
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal-box" onclick="event.stopPropagation()">
         <h2>Editar tarea</h2>
+        <div style="font-size:11.5px;color:var(--text-muted);margin:-10px 0 14px;">🕐 ${formatCreatedWhen(t)}</div>
         <div class="field-label">Título</div>
         <input type="text" id="edit-title" value="${escapeHtml(t.title)}">
         <div class="modal-row2">
@@ -2383,6 +2384,20 @@ function formatCompletedWhen(t){
   return `Completada ${dayLabel} a las ${timeLabel}`;
 }
 
+/** Igual que formatCompletedWhen, pero para la fecha/hora en que se creó la tarea. */
+function formatCreatedWhen(t){
+  if(!t.createdAt) return null;
+  const d = new Date(t.createdAt);
+  const timeLabel = pad2(d.getHours())+':'+pad2(d.getMinutes());
+  const dISO = toISO(d);
+  const t0 = todayISO();
+  let dayLabel;
+  if(dISO === t0) dayLabel = 'hoy';
+  else if(dISO === yesterdayISO()) dayLabel = 'ayer';
+  else dayLabel = `el ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`;
+  return `Creada ${dayLabel} a las ${timeLabel}`;
+}
+
 /* =====================================================================
    RENDER: SIDEBAR
    ===================================================================== */
@@ -2802,6 +2817,7 @@ function renderTaskCard(t){
               <button onclick="addTag('${t.id}')">Etiquetar</button>
             </div>
             ${t.notes ? `<div style="font-size:12px;color:var(--text-2);margin-top:9px;white-space:pre-wrap;">${escapeHtml(t.notes)}</div>` : ''}
+            <div style="font-size:11px;color:var(--text-muted);margin-top:9px;">🕐 ${formatCreatedWhen(t)}</div>
             <button class="expand-btn" onclick="toggleExpand('${t.id}')">Ocultar</button>
           </div>
         ` : ''}
