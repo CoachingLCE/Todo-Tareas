@@ -660,7 +660,7 @@ async function loadState(){
   migrateState();
   applyTheme();
   render();
-  attachDashboardScrollListener();
+  // attachDashboardScrollListener(); // desactivado: causaba un glitch visual al compactar
   renderReminderBanner();
   maybeShowWelcomeMessage();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
@@ -2265,7 +2265,8 @@ function renderDayProgress(){
         ${suggestion ? `<div style="margin-top:8px;color:var(--accent-strong);">${suggestion}</div>` : ''}
       </div>` : ''}
     </div>`;
-  updateDashboardCompactState();
+  // Nota: el compactado automático al hacer scroll se desactivó por un glitch visual
+  // en mobile; el código queda disponible por si se retoma con un enfoque más simple.
 }
 let dashboardDetailsOpen = false;
 function toggleDashboardDetails(){ dashboardDetailsOpen = !dashboardDetailsOpen; renderDayProgress(); }
