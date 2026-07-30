@@ -182,11 +182,14 @@
   .date-badge.today{color:var(--accent-strong);background:var(--accent-bg);font-weight:600;}
   .date-badge.overdue{color:var(--high);background:var(--high-bg);font-weight:600;}
   .recur-badge{font-size:11px;color:var(--text-muted);}
-  .task-actions{position:absolute;top:10px;right:10px;display:flex;gap:2px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s;}
+  .task-actions{position:absolute;top:10px;right:10px;display:flex;gap:2px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s;}
   .task:hover .task-actions,.task-actions.force-visible{opacity:1;visibility:visible;pointer-events:auto;}
   .icon-btn{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:4px 6px;border-radius:6px;transition:background .12s,color .12s;}
   .desktop-only-action{display:none;}
-  .kebab-btn{display:flex;align-items:center;justify-content:center;min-width:26px;min-height:26px;font-size:16px;background:var(--card);border:1px solid var(--border);border-radius:6px;}
+  .kebab-btn{display:flex;align-items:center;justify-content:center;min-width:26px;min-height:26px;font-size:17px;
+    background:transparent;border:none;border-radius:6px;color:#9ca3af;transition:color .2s,background .2s;}
+  .kebab-btn:hover{color:#fff;background:rgba(255,255,255,.08);}
+  [data-theme="light"] .kebab-btn:hover{color:var(--text);background:rgba(0,0,0,.06);}
   .icon-btn:hover{color:var(--text);background:var(--bg);}
   .progress-bar-wrap{background:var(--bg);border-radius:20px;height:4px;overflow:hidden;margin-top:6px;width:100%;max-width:180px;}
   .progress-bar{height:100%;background:var(--accent);border-radius:20px;transition:width .25s var(--ease);}
@@ -428,14 +431,9 @@
       display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .smart-chips{position:fixed;left:10px;right:10px;bottom:66px;z-index:44;}
 
-    /* Swipe sobre tareas: derecha completa, izquierda revela editar/eliminar */
+    /* Swipe sobre tareas: derecha completa; izquierda abre el menú de acciones (⋮) */
     .task-swipe-wrapper{position:relative;overflow:hidden;border-radius:var(--radius);margin-bottom:9px;}
     .task-swipe-wrapper .task{margin-bottom:0;}
-    .task-swipe-actions{position:absolute;top:0;right:0;bottom:0;width:132px;display:flex;z-index:1;}
-    .swipe-action-btn{flex:1;border:none;color:#fff;font-size:11px;font-weight:600;display:flex;flex-direction:column;
-      align-items:center;justify-content:center;gap:3px;cursor:pointer;min-height:44px;}
-    .swipe-action-btn.edit{background:var(--accent);}
-    .swipe-action-btn.delete{background:var(--high);}
     .task-swipe-wrapper.swipe-right-active .task{background:var(--success-bg);}
 
     /* Menú de acciones: solo kebab visible, botones sueltos ocultos */
@@ -1034,17 +1032,13 @@ function onSwipeEnd(){
   const inner = wrapper.querySelector('.task');
   if(!moved){ swipeState = null; return; }
   inner.style.transition = 'transform .2s var(--ease)';
+  inner.style.transform = 'translateX(0)';
+  wrapper.classList.remove('swipe-right-active');
   if(currentX > 70){
-    inner.style.transform = 'translateX(0)';
-    wrapper.classList.remove('swipe-right-active');
     const cb = wrapper.querySelector('.checkbox');
     handleCompleteClick(taskId, { currentTarget: cb });
   } else if(currentX < -70){
-    inner.style.transform = 'translateX(-132px)';
-    wrapper.classList.add('revealed');
-  } else {
-    inner.style.transform = 'translateX(0)';
-    wrapper.classList.remove('revealed','swipe-right-active');
+    openTaskActionsSheet(taskId);
   }
   swipeState = null;
 }
@@ -2741,10 +2735,6 @@ function renderTaskCard(t){
 
   return `
   <div class="task-swipe-wrapper" data-task-id="${t.id}">
-    <div class="task-swipe-actions">
-      <button class="swipe-action-btn edit" onclick="openEditModal('${t.id}')">✎<span>Editar</span></button>
-      <button class="swipe-action-btn delete" onclick="deleteTask('${t.id}')">✕<span>Eliminar</span></button>
-    </div>
   <div class="task ${t.done?'done':''} ${prioClass} ${isSelected?'selected':''} ${t.id===justAddedTaskId?'task-enter':''}" data-task-id="${t.id}" draggable="true"
     ondragstart="onTaskDragStart(event,'${t.id}')" ondragover="onTaskDragOver(event,'${t.id}')"
     ondragleave="onTaskDragLeaveCard(event)" ondrop="onTaskDrop(event,'${t.id}')" ondragend="onTaskDragEnd(event)"
