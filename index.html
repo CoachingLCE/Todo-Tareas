@@ -2843,6 +2843,35 @@ document.addEventListener('keydown', (e)=>{
 });
 
 /** Punto de arranque: si hay login configurado (APPS_SCRIPT_URL) y no hay sesión activa, pide el mail primero. */
+/**
+ * Revisa si hay una versión más nueva guardada desde otro dispositivo (mismo mail)
+ * cada vez que la pestaña vuelve a estar activa, y si la hay, la trae — así se evita
+ * que una pestaña abierta hace rato pise con datos viejos lo que se hizo en otro lado.
+ */
+let checkingRemoteUpdates = false;
+async function checkForRemoteUpdates(){
+  if(checkingRemoteUpdates || !currentUserEmail || !isSheetsConfigured()) return;
+  checkingRemoteUpdates = true;
+  try{
+    const res = await storageGet(STORAGE_KEY);
+    if(res && res.value){
+      const remote = JSON.parse(res.value);
+      const remoteTime = remote.lastSavedAt || 0;
+      const localTime = state.lastSavedAt || 0;
+      if(remoteTime > localTime){
+        state = remote;
+        migrateState();
+        render();
+        renderReminderBanner();
+        showToast('Se actualizaron tus tareas desde otro dispositivo.');
+      }
+    }
+  }catch(e){ console.error('No se pudo revisar actualizaciones remotas', e); }
+  checkingRemoteUpdates = false;
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') checkForRemoteUpdates(); });
+window.addEventListener('focus', checkForRemoteUpdates);
+
 function initApp(){
   if(isSheetsConfigured()){
     const saved = getSavedEmail();
