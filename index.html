@@ -797,12 +797,18 @@ function migrateState(){
   if(!state.lists.some(l=> normalize(l.name)==='agenda')){
     state.lists.push({ id: uid(), name:'Agenda', color:'#dd9012' });
   }
-  if(!state.lists.some(l=> normalize(l.name)==='libros por leer')){
-    state.lists.push({ id: uid(), name:'Libros por leer', color:'#8b5e3c' });
-  }
-  if(!state.lists.some(l=> normalize(l.name)==='series por ver')){
-    state.lists.push({ id: uid(), name:'Series por ver', color:'#c14f8f' });
-  }
+  const contentCategories = [
+    { name:'📚 Leer', color:'#8b5e3c' },
+    { name:'🎬 Películas', color:'#b3542f' },
+    { name:'📺 Series', color:'#c14f8f' },
+    { name:'🎧 Podcasts', color:'#2f9e5b' },
+    { name:'🎥 Videos/YouTube', color:'#cc3333' }
+  ];
+  contentCategories.forEach(cat=>{
+    if(!state.lists.some(l=> normalize(l.name)===normalize(cat.name))){
+      state.lists.push({ id: uid(), name: cat.name, color: cat.color });
+    }
+  });
   state.tasks.forEach((t,i)=>{
     if(typeof t.order !== 'number') t.order = i;
     if(typeof t.notes !== 'string') t.notes = '';
@@ -818,15 +824,18 @@ function migrateState(){
 }
 
 function seedDefault(){
-  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid(), l5 = uid(), l6 = uid();
+  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid(), l5 = uid(), l6 = uid(), l7 = uid(), l8 = uid(), l9 = uid();
   state = {
     lists: [
       {id:l1, name:'Personal', color:'#3b6bf0'},
       {id:l2, name:'Compras', color:'#3f95a8'},
       {id:l3, name:'ILCE', color:'#8a5fd6'},
       {id:l4, name:'Agenda', color:'#dd9012'},
-      {id:l5, name:'Libros por leer', color:'#8b5e3c'},
-      {id:l6, name:'Series por ver', color:'#c14f8f'}
+      {id:l5, name:'📚 Leer', color:'#8b5e3c'},
+      {id:l6, name:'🎬 Películas', color:'#b3542f'},
+      {id:l7, name:'📺 Series', color:'#c14f8f'},
+      {id:l8, name:'🎧 Podcasts', color:'#2f9e5b'},
+      {id:l9, name:'🎥 Videos/YouTube', color:'#cc3333'}
     ],
     tasks: [],
     currentView: {type:'list', id:l1},
@@ -1122,10 +1131,13 @@ function onListDragEnd(evt){
 const WEEKDAYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
 function normalize(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
-/** Detecta si el texto sugiere claramente otra lista (ej. "ver una serie" → Series por ver). */
+/** Detecta si el texto sugiere claramente una categoría de contenido (ej. "leer" → 📚 Leer). */
 const SMART_LIST_RULES = [
-  { match: /\bserie(s)?\b/, listName: 'Series por ver', color:'#c14f8f' },
-  { match: /\blibro(s)?\b|\bleer\b/, listName: 'Libros por leer', color:'#8b5e3c' }
+  { match: /\bleer\b/, listName: '📚 Leer', color:'#8b5e3c' },
+  { match: /\bpelicula(s)?\b|\bfilm\b/, listName: '🎬 Películas', color:'#b3542f' },
+  { match: /\bserie(s)?\b|\btemporada(s)?\b|\bepisodio(s)?\b/, listName: '📺 Series', color:'#c14f8f' },
+  { match: /\bescuchar\b|\bpodcast(s)?\b/, listName: '🎧 Podcasts', color:'#2f9e5b' },
+  { match: /\bvideo(s)?\b|\byoutube\b/, listName: '🎥 Videos/YouTube', color:'#cc3333' }
 ];
 function detectSmartListOverride(text){
   const norm = normalize(text);
@@ -1821,6 +1833,7 @@ function openEditModal(taskId){
             <button class="btn" onclick="aiAction('${t.id}','estimate')">⏱️ Estimar tiempo</button>
             <button class="btn" onclick="aiAction('${t.id}','duedate')">📅 Sugerir fecha límite</button>
             <button class="btn" onclick="aiAction('${t.id}','tags')">🏷️ Sugerir etiquetas</button>
+            <button class="btn" onclick="aiAction('${t.id}','category')">📁 Sugerir categoría</button>
             <button class="btn" onclick="aiAction('${t.id}','summarize')">📝 Resumir notas</button>
           </div>
           <div id="ai-result-container"></div>
@@ -2024,6 +2037,16 @@ async function aiAction(taskId, action){
       const tags = JSON.parse(cleanJson(text));
       box.innerHTML = `<div class="ai-result-box">${tags.map(tag=>`<span class="tag" style="cursor:pointer" onclick='quickAddTag("${taskId}","${tag}")'>${escapeHtml(tag)}</span>`).join(' ')}
         <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">Tocá una etiqueta para agregarla.</div></div>`;
+    } else if(action==='category'){
+      const text = await callClaude(`Tarea: "${t.title}". Si el título hace referencia a consumir contenido (leer un libro, ver una película, ver una serie, escuchar un podcast, o ver un video/YouTube), identificá de qué se trata usando tu conocimiento general (por ejemplo, si es un título de película o serie conocida) y respondé ÚNICAMENTE con una de estas palabras exactas: leer, pelicula, serie, podcast, video, ninguna.`, 10);
+      const catMatch = normalize(text).match(/leer|pelicula|serie|podcast|video|ninguna/);
+      const catKey = catMatch ? catMatch[0] : 'ninguna';
+      const catMap = { leer:'📚 Leer', pelicula:'🎬 Películas', serie:'📺 Series', podcast:'🎧 Podcasts', video:'🎥 Videos/YouTube' };
+      const suggestedList = catMap[catKey];
+      box.innerHTML = suggestedList
+        ? `<div class="ai-result-box">Categoría sugerida: <strong>${suggestedList}</strong>
+            <button class="btn" style="margin-left:8px" onclick="moveTaskToListByName('${taskId}','${suggestedList}');closeModal()">Mover ahí</button></div>`
+        : `<div class="ai-result-box">No parece pertenecer a ninguna categoría de contenido.</div>`;
     } else if(action==='summarize'){
       if(!t.notes){ box.innerHTML = '<div class="ai-result-box">Esta tarea no tiene notas para resumir.</div>'; return; }
       const text = await callClaude(`Resumí estas notas en 1-2 oraciones cortas en español: "${t.notes}"`, 100);
@@ -2038,6 +2061,14 @@ function quickAddTag(taskId, tag){
   if(t && !t.tags.includes(tag)) t.tags.push(tag);
   saveState();
   openEditModal(taskId);
+}
+function moveTaskToListByName(taskId, listName){
+  const t = state.tasks.find(t=>t.id===taskId);
+  if(!t) return;
+  const list = getOrCreateListByName(listName);
+  t.listId = list.id;
+  saveState(); render();
+  showToast(`Movida a ${listName}`);
 }
 function acceptAISubtasks(taskId, suggestions){
   const t = state.tasks.find(t=>t.id===taskId);
