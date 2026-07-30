@@ -373,6 +373,11 @@
     .search-box{width:94vw;}
     .suggestions-panel{position:fixed;right:0;top:0;bottom:0;width:82vw;max-width:300px;z-index:60;}
     .pomodoro-panel{right:12px;bottom:12px;left:12px;width:auto;}
+    .login-box{width:92vw;padding:28px 22px;}
+    .login-title{font-size:26px;}
+    .login-subtitle{font-size:14px;margin-bottom:22px;}
+    .login-input{height:52px;font-size:16px;}
+    .login-btn{height:52px;font-size:16px;}
   }
 </style>
 </head>
@@ -1861,11 +1866,20 @@ function addToToday(taskId){
    IMPORTACIÓN MASIVA
    ===================================================================== */
 function openImport(){
-  const listOptions = state.lists.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  const listOptions = state.lists.map(l=>`<option value="${l.id}" ${normalize(l.name)==='agenda'?'selected':''}>${escapeHtml(l.name)}</option>`).join('');
   document.getElementById('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal-box" onclick="event.stopPropagation()">
         <h2>Importar tareas</h2>
+
+        <div class="ai-panel">
+          <div class="field-label" style="margin-top:0;">${icon('calendar',15)} Importar calendario de Google (.ics)</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+            En Google Calendar: ⚙️ Configuración → "Importar y exportar" → "Exportar". Subí acá el archivo .ics que se descargue.
+          </div>
+          <input type="file" id="ics-import-file" accept=".ics" onchange="handleICSFile(this)" style="font-size:12px;">
+          <div id="ics-import-preview"></div>
+        </div>
 
         <div class="ai-panel">
           <div class="field-label" style="margin-top:0;">🪄 Pegar texto o subir una foto — la IA arma la lista</div>
@@ -1898,6 +1912,79 @@ function openImport(){
       </div>
     </div>`;
 }
+/** Convierte una fecha en formato ICS (aaaammdd o aaaammddThhmmssZ) a aaaa-mm-dd, en hora local. */
+function parseICSDate(value){
+  const m = value.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?$/);
+  if(!m) return null;
+  const [, y, mo, d, hh, mi, ss, z] = m;
+  if(hh===undefined) return `${y}-${mo}-${d}`; // evento de todo el día
+  const dateObj = z ? new Date(Date.UTC(+y, +mo-1, +d, +hh, +mi, +ss)) : new Date(+y, +mo-1, +d, +hh, +mi, +ss);
+  return toISO(dateObj);
+}
+
+/** Parser simple de archivos .ics (formato estándar de exportación de Google Calendar). */
+function parseICS(text){
+  const unfolded = text.replace(/\r\n[ \t]/g,'').replace(/\n[ \t]/g,''); // desplegar líneas continuadas (RFC 5545)
+  const events = [];
+  unfolded.split('BEGIN:VEVENT').slice(1).forEach(block=>{
+    const body = block.split('END:VEVENT')[0];
+    const summaryMatch = body.match(/\nSUMMARY:(.*)/) || body.match(/^SUMMARY:(.*)/m);
+    const dtstartMatch = body.match(/DTSTART[^:]*:(\S+)/);
+    if(summaryMatch && dtstartMatch){
+      const title = summaryMatch[1].trim().replace(/\\,/g,',').replace(/\\n/gi,' ');
+      const date = parseICSDate(dtstartMatch[1].trim());
+      if(title && date) events.push({ title, date });
+    }
+  });
+  return events;
+}
+
+function handleICSFile(inputEl){
+  const file = inputEl.files[0];
+  const preview = document.getElementById('ics-import-preview');
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const events = parseICS(reader.result);
+    if(events.length===0){
+      preview.innerHTML = '<div class="ai-result-box">No se encontraron eventos en ese archivo.</div>';
+      return;
+    }
+    window.__icsImportItems = events;
+    preview.innerHTML = `
+      <div class="ai-result-box" style="max-height:220px;overflow-y:auto;">
+        ${events.map((ev,i)=>`
+          <div class="ai-sub-item">
+            <input type="checkbox" id="ics-item-${i}" checked>
+            <label for="ics-item-${i}">${escapeHtml(ev.title)} <span class="tag" style="margin-left:4px;">📅 ${ev.date}</span></label>
+          </div>`).join('')}
+        <button class="btn primary" style="margin-top:8px;font-size:12px;" onclick="acceptICSImportItems()">Agregar ${events.length} evento${events.length===1?'':'s'} seleccionados</button>
+      </div>`;
+  };
+  reader.readAsText(file);
+}
+
+function acceptICSImportItems(){
+  const events = window.__icsImportItems || [];
+  const listId = document.getElementById('import-list').value;
+  if(!listId){ alert('Elegí una lista destino primero.'); return; }
+  let maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===listId).map(t=>t.order||0));
+  let added = 0;
+  events.forEach((ev,i)=>{
+    const cb = document.getElementById('ics-item-'+i);
+    if(!cb || !cb.checked) return;
+    maxOrder++;
+    state.tasks.push({ id: uid(), listId, title: ev.title, done:false, priority:null, tags:['calendario'], subtasks:[],
+      notes:'', dueDate: ev.date, createdAt:Date.now(), completedAt:null, order:maxOrder, recurrence:null, reminderDaysBefore:null, reminders:[] });
+    added++;
+  });
+  window.__icsImportItems = null;
+  closeModal();
+  state.currentView = {type:'list', id:listId};
+  saveState(); render();
+  showToast(`Se importaron ${added} evento${added===1?'':'s'} del calendario`);
+}
+
 function runImport(){
   const listId = document.getElementById('import-list').value;
   if(!listId){ alert('Creá una lista primero.'); return; }
