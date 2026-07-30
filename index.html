@@ -11,8 +11,8 @@
     --text:#22221f; --text-2:#6e6d67; --text-muted:#a3a199;
     --accent:#3b6bf0; --accent-bg:#eaf0ff; --accent-strong:#2954c7;
     --high:#e0453c; --high-bg:#fdeceb;
-    --med:#6e6d67; --med-bg:#eeede9;
-    --low:#6e6d67; --low-bg:#eeede9;
+    --med:#dd9012; --med-bg:#fdf3e3;
+    --low:#3b6bf0; --low-bg:#eaf0ff;
     --success:#2f9e5b; --success-bg:#e7f6ee;
     --radius-sm:8px; --radius:12px; --radius-lg:16px;
     --shadow-sm:0 1px 2px rgba(20,20,15,.04);
@@ -25,8 +25,8 @@
     --text:#eeeef2; --text-2:#a3a2ac; --text-muted:#6c6b76;
     --accent:#6f93f7; --accent-bg:#1c2846; --accent-strong:#8caaff;
     --high:#f0716a; --high-bg:#3a2020;
-    --med:#a3a2ac; --med-bg:#2a2a31;
-    --low:#a3a2ac; --low-bg:#2a2a31;
+    --med:#f0ab4d; --med-bg:#3a2c14;
+    --low:#6f93f7; --low-bg:#1c2846;
     --success:#4fbf82; --success-bg:#123322;
     --shadow-sm:0 1px 2px rgba(0,0,0,.3);
     --shadow-md:0 2px 10px rgba(0,0,0,.35);
@@ -1222,7 +1222,11 @@ function setNewPrio(p){
   newPrio = (newPrio === p) ? null : p;
   manualPrioOverride = true;
   document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
-  if(newPrio) document.querySelector('#new-prio .'+newPrio).classList.add('sel');
+  if(newPrio){
+    const cls = newPrio==='alta' ? 'high' : newPrio==='media' ? 'med' : 'low';
+    const btn = document.querySelector('#new-prio .'+cls);
+    if(btn) btn.classList.add('sel');
+  }
   updateMobilePrioDot();
 }
 function updateMobilePrioDot(){
