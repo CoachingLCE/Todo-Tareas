@@ -797,6 +797,12 @@ function migrateState(){
   if(!state.lists.some(l=> normalize(l.name)==='agenda')){
     state.lists.push({ id: uid(), name:'Agenda', color:'#dd9012' });
   }
+  if(!state.lists.some(l=> normalize(l.name)==='libros por leer')){
+    state.lists.push({ id: uid(), name:'Libros por leer', color:'#8b5e3c' });
+  }
+  if(!state.lists.some(l=> normalize(l.name)==='series por ver')){
+    state.lists.push({ id: uid(), name:'Series por ver', color:'#c14f8f' });
+  }
   state.tasks.forEach((t,i)=>{
     if(typeof t.order !== 'number') t.order = i;
     if(typeof t.notes !== 'string') t.notes = '';
@@ -812,13 +818,15 @@ function migrateState(){
 }
 
 function seedDefault(){
-  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid();
+  const l1 = uid(), l2 = uid(), l3 = uid(), l4 = uid(), l5 = uid(), l6 = uid();
   state = {
     lists: [
       {id:l1, name:'Personal', color:'#3b6bf0'},
       {id:l2, name:'Compras', color:'#3f95a8'},
       {id:l3, name:'ILCE', color:'#8a5fd6'},
-      {id:l4, name:'Agenda', color:'#dd9012'}
+      {id:l4, name:'Agenda', color:'#dd9012'},
+      {id:l5, name:'Libros por leer', color:'#8b5e3c'},
+      {id:l6, name:'Series por ver', color:'#c14f8f'}
     ],
     tasks: [],
     currentView: {type:'list', id:l1},
@@ -1114,6 +1122,24 @@ function onListDragEnd(evt){
 const WEEKDAYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
 function normalize(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
+/** Detecta si el texto sugiere claramente otra lista (ej. "ver una serie" → Series por ver). */
+const SMART_LIST_RULES = [
+  { match: /\bserie(s)?\b/, listName: 'Series por ver', color:'#c14f8f' },
+  { match: /\blibro(s)?\b|\bleer\b/, listName: 'Libros por leer', color:'#8b5e3c' }
+];
+function detectSmartListOverride(text){
+  const norm = normalize(text);
+  for(const rule of SMART_LIST_RULES){
+    if(rule.match.test(norm)) return rule;
+  }
+  return null;
+}
+function getOrCreateListByName(name, color){
+  let list = state.lists.find(l=> normalize(l.name)===normalize(name));
+  if(!list){ list = { id: uid(), name, color: color||'#3b6bf0' }; state.lists.push(list); }
+  return list;
+}
+
 function detectSmartChips(text){
   const norm = normalize(text);
   let clean = text;
@@ -1218,6 +1244,8 @@ function onTitleInput(){
   let chips = '';
   if(result.dateLabel && !manualDateOverride) chips += `<span class="smart-chip">📅 ${result.dateLabel}</span>`;
   if(result.prioLabel && !manualPrioOverride) chips += `<span class="smart-chip">🎯 prioridad ${result.prioLabel}</span>`;
+  const listRule = detectSmartListOverride(input.value);
+  if(listRule) chips += `<span class="smart-chip">📂 va a "${escapeHtml(listRule.listName)}"</span>`;
   let html = chips ? `<div class="smart-chips">${chips}</div>` : '';
   const similar = findSimilarTask(result.clean || input.value);
   if(similar) html += `<div class="similar-warning">⚠️ Ya existe una tarea parecida: "${escapeHtml(similar.title)}"</div>`;
@@ -1259,7 +1287,10 @@ function addTask(){
   const input = document.getElementById('new-task-title');
   const raw = input.value.trim();
   if(!raw) return;
-  const targetListId = (state.currentView.type === 'list' && state.currentView.id) ? state.currentView.id : getOrCreatePersonalListId();
+  const listRule = detectSmartListOverride(raw);
+  const targetListId = listRule
+    ? getOrCreateListByName(listRule.listName, listRule.color).id
+    : (state.currentView.type === 'list' && state.currentView.id) ? state.currentView.id : getOrCreatePersonalListId();
   const parsed = detectSmartChips(raw);
   const manualDate = document.getElementById('new-task-date').value;
   const finalDate = manualDateOverride ? (manualDate || null) : (parsed.date || manualDate || todayISO());
@@ -1284,6 +1315,7 @@ function addTask(){
   updateMobilePrioDot();
   document.getElementById('smart-chips-preview').innerHTML = '';
   saveState(); render(); renderReminderBanner();
+  if(listRule) showToast(`Agregada a "${listRule.listName}"`);
   setTimeout(()=>{ justAddedTaskId = null; }, 400);
 }
 
