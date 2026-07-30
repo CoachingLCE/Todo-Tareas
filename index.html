@@ -152,6 +152,7 @@
     transition:opacity .25s var(--ease),transform .25s var(--ease),box-shadow .15s,border-color .15s;box-shadow:var(--shadow-sm);}
   .task:hover{box-shadow:var(--shadow-md);border-color:var(--border-strong);}
   .task.prio-alta{border-left-color:var(--high);}
+  .task.is-favorite{background:var(--accent-bg);}
   .task.prio-media{border-left-color:var(--med);}
   .task.prio-baja{border-left-color:var(--low);}
   .task.done{opacity:.5;}
@@ -831,6 +832,7 @@ function migrateState(){
     if(t.recurrence === undefined) t.recurrence = null;
     if(t.reminderDaysBefore === undefined) t.reminderDaysBefore = null;
     if(t.completedAtTime === undefined) t.completedAtTime = null;
+    if(typeof t.favorite !== 'boolean') t.favorite = false;
     if(t.youtubeUrl === undefined) t.youtubeUrl = null;
     if(t.youtubeTitle === undefined) t.youtubeTitle = null;
     if(t.youtubeThumbnail === undefined) t.youtubeThumbnail = null;
@@ -1431,7 +1433,7 @@ function addTask(){
     priority: finalPriority, tags: [], subtasks: [], notes: '', dueDate: finalDate,
     createdAt: Date.now(), completedAt: null, order: maxOrder+1,
     recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null,
-    youtubeUrl: extractYouTubeUrl(raw), youtubeTitle: null, youtubeThumbnail: null, youtubeAuthor: null
+    youtubeUrl: extractYouTubeUrl(raw), youtubeTitle: null, youtubeThumbnail: null, youtubeAuthor: null, favorite: false
   };
   state.tasks.push(newTask);
   if(newTask.youtubeUrl) fetchYouTubeMetadata(newTask.id, newTask.youtubeUrl);
@@ -1587,6 +1589,10 @@ function cyclePriority(id){
 function setPriority(id, p){
   const t = state.tasks.find(t=>t.id===id);
   if(t){ t.priority = p; saveState(); render(); }
+}
+function toggleFavorite(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(t){ t.favorite = !t.favorite; saveState(); render(); showToast(t.favorite ? 'Fijada como favorita' : 'Quitada de favoritos'); }
 }
 
 function toggleExpand(id){ expanded[id] = !expanded[id]; render(); }
@@ -1904,6 +1910,7 @@ function openTaskActionsSheet(taskId){
         <div class="action-sheet-title">${escapeHtml(t.title)}</div>
         <button class="action-sheet-btn" onclick="closeModal();openEditModal('${t.id}')">✎ Editar</button>
         <button class="action-sheet-btn" onclick="duplicateTask('${t.id}');closeModal()">⧉ Duplicar</button>
+        <button class="action-sheet-btn" onclick="toggleFavorite('${t.id}');closeModal()">${t.favorite ? '⭐ Quitar de favoritos' : '☆ Fijar como favorita'}</button>
         <button class="action-sheet-btn" onclick="setPriority('${t.id}','alta');closeModal()">🔴 Prioridad alta</button>
         <button class="action-sheet-btn" onclick="setPriority('${t.id}','media');closeModal()">⚪ Prioridad media</button>
         <button class="action-sheet-btn" onclick="setPriority('${t.id}','baja');closeModal()">⚪ Prioridad baja</button>
@@ -1923,6 +1930,7 @@ function openContextMenu(evt, taskId){
     <div class="context-menu" style="left:${x}px;top:${y}px;" onclick="event.stopPropagation()">
       <button onclick="openEditModal('${t.id}');closeContextMenu()">✎ Editar</button>
       <button onclick="duplicateTask('${t.id}');closeContextMenu()">⧉ Duplicar</button>
+      <button onclick="toggleFavorite('${t.id}');closeContextMenu()">${t.favorite ? '⭐ Quitar de favoritos' : '☆ Fijar como favorita'}</button>
       <hr>
       <button onclick="setPriority('${t.id}','alta');closeContextMenu()">🔴 Prioridad alta</button>
       <button onclick="setPriority('${t.id}','media');closeContextMenu()">🟠 Prioridad media</button>
@@ -1953,6 +1961,7 @@ function getVisibleTasks(){
   if(v.type === 'today') return state.tasks.filter(t=> t.dueDate===t0 || isOverdue(t));
   if(v.type === 'tomorrow') return state.tasks.filter(t=> t.dueDate===tomorrowISO());
   if(v.type === 'important') return state.tasks.filter(t=> t.priority === 'alta');
+  if(v.type === 'favorites') return state.tasks.filter(t=> t.favorite);
   if(v.type === 'filter'){
     if(v.id === 'overdue') return state.tasks.filter(isOverdue);
     if(v.id === 'week') return state.tasks.filter(t=>!t.done && isThisWeek(t.dueDate));
@@ -2673,15 +2682,18 @@ function renderSidebar(){
   const todayCount = state.tasks.filter(t=>!t.done && (t.dueDate===t0 || isOverdue(t))).length;
   const upcomingCount = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate > t0).length;
   const impCount = state.tasks.filter(t=>!t.done && t.priority==='alta').length;
+  const favCount = state.tasks.filter(t=>!t.done && t.favorite).length;
   smart.innerHTML = `
     <div class="nav-item ${state.currentView.type==='today'?'active':''}" onclick="selectView('today', null)"><span class="nav-icon">${icon('sun')}</span><span>Mi día</span><span class="count">${todayCount||''}</span></div>
     <div class="nav-item ${state.currentView.type==='upcoming'?'active':''}" onclick="selectView('upcoming', null)"><span class="nav-icon">${icon('clipboard')}</span><span>Próximos</span><span class="count">${upcomingCount||''}</span></div>
     <div class="nav-item mobile-only-nav ${state.currentView.type==='filter'&&state.currentView.id==='overdue'?'active':''}" onclick="selectView('filter','overdue')"><span class="nav-icon">${icon('clock')}</span><span>Vencidas</span></div>
     <div class="mobile-collapsible-nav" id="mobile-collapsible-nav">
       <div class="nav-item ${state.currentView.type==='important'?'active':''}" onclick="selectView('important', null)"><span class="nav-icon">${icon('star')}</span><span>Importantes</span><span class="count">${impCount||''}</span></div>
+      <div class="nav-item ${state.currentView.type==='favorites'?'active':''}" onclick="selectView('favorites', null)"><span class="nav-icon">⭐</span><span>Favoritos</span><span class="count">${favCount||''}</span></div>
       <div class="nav-item ${state.currentView.type==='calendar'?'active':''}" onclick="selectView('calendar', null)"><span class="nav-icon">${icon('calendar')}</span><span>Calendario</span></div>
       <div class="nav-item ${state.currentView.type==='stats'?'active':''}" onclick="selectView('stats', null)"><span class="nav-icon">${icon('barChart')}</span><span>Estadísticas</span></div>
       <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
+      <div class="nav-item ${state.currentView.type==='cleanup'?'active':''}" onclick="selectView('cleanup', null)"><span class="nav-icon">🧹</span><span>Limpieza</span></div>
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
       <div class="nav-item ${state.currentView.type==='week'?'active':''}" onclick="selectView('week', null)"><span class="nav-icon">${icon('calendarDays')}</span><span>Semana</span></div>
     </div>
@@ -3053,7 +3065,7 @@ function renderTaskCard(t){
 
   return `
   <div class="task-swipe-wrapper" data-task-id="${t.id}">
-  <div class="task ${t.done?'done':''} ${prioClass} ${isSelected?'selected':''} ${t.id===justAddedTaskId?'task-enter':''}" data-task-id="${t.id}" draggable="true"
+  <div class="task ${t.done?'done':''} ${prioClass} ${isSelected?'selected':''} ${t.id===justAddedTaskId?'task-enter':''} ${t.favorite?'is-favorite':''}" data-task-id="${t.id}" draggable="true"
     ondragstart="onTaskDragStart(event,'${t.id}')" ondragover="onTaskDragOver(event,'${t.id}')"
     ondragleave="onTaskDragLeaveCard(event)" ondrop="onTaskDrop(event,'${t.id}')" ondragend="onTaskDragEnd(event)"
     oncontextmenu="openContextMenu(event,'${t.id}')">
@@ -3062,7 +3074,7 @@ function renderTaskCard(t){
       <div class="checkbox ${t.done?'checked':''}" onclick="handleCompleteClick('${t.id}', event)">${t.done?'✓':''}</div>
       <div class="task-body">
         ${t.youtubeUrl ? renderYoutubeCard(t) : ''}
-        <div class="task-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.youtubeTitle || t.title)}</div>
+        <div class="task-title" onclick="openEditModal('${t.id}')">${t.favorite?'⭐ ':''}${escapeHtml(t.youtubeTitle || t.title)}</div>
         ${t.done && formatCompletedWhen(t) ? `<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">✓ ${formatCompletedWhen(t)}</div>` : ''}
         <div class="task-meta">
           ${t.priority ? `<span class="badge ${t.priority==='alta'?'high':t.priority==='media'?'med':'low'}" onclick="cyclePriority('${t.id}')" style="cursor:pointer">${priorityIcon(t.priority)} ${priorityLabel(t.priority)}</span>` : ''}
@@ -3358,6 +3370,100 @@ function onKanbanDrop(evt, colKey){
   if(t){ t.priority = colKey==='none' ? null : colKey; saveState(); render(); }
   draggedTaskId = null;
 }
+/* =====================================================================
+   CENTRO DE LIMPIEZA
+   ===================================================================== */
+/** Agrupa tareas pendientes con títulos muy parecidos (misma heurística que findSimilarTask). */
+function findDuplicateGroups(){
+  const pending = state.tasks.filter(t=>!t.done);
+  const used = new Set();
+  const groups = [];
+  pending.forEach(t=>{
+    if(used.has(t.id)) return;
+    const words = new Set(normalize(t.title).split(/\s+/).filter(w=>w.length>3));
+    if(words.size===0) return;
+    const group = [t];
+    pending.forEach(other=>{
+      if(other.id===t.id || used.has(other.id)) return;
+      const oWords = new Set(normalize(other.title).split(/\s+/).filter(w=>w.length>3));
+      if(oWords.size===0) return;
+      let overlap = 0;
+      words.forEach(w=>{ if(oWords.has(w)) overlap++; });
+      const score = overlap / Math.max(words.size, oWords.size);
+      if(score >= 0.6) group.push(other);
+    });
+    if(group.length>1){ group.forEach(g=>used.add(g.id)); groups.push(group); }
+    else used.add(t.id);
+  });
+  return groups;
+}
+function computeCleanupStats(){
+  const duplicateGroups = findDuplicateGroups();
+  const duplicateExtraCount = duplicateGroups.reduce((s,g)=>s+(g.length-1), 0);
+  const noDateCount = state.tasks.filter(t=>!t.done && !t.dueDate).length;
+  const overdueCount = state.tasks.filter(isOverdue).length;
+  const emptyListsCount = state.lists.filter(l=> !state.tasks.some(t=>t.listId===l.id)).length;
+  const repeatedRemindersCount = state.tasks.filter(t=> t.reminders && t.reminders.length !== new Set(t.reminders).size).length;
+  const total = duplicateExtraCount + noDateCount + overdueCount + emptyListsCount + repeatedRemindersCount;
+  return { duplicateGroups, duplicateExtraCount, noDateCount, overdueCount, emptyListsCount, repeatedRemindersCount, total };
+}
+function renderCleanupCenter(container){
+  const s = computeCleanupStats();
+  container.innerHTML = `
+    <div class="day-progress-card" style="margin-top:0;">
+      <div style="font-size:16px;font-weight:700;">Hay ${s.total} cosa${s.total===1?'':'s'} para revisar</div>
+    </div>
+    <div class="task-group-label">Detalle</div>
+    <div class="stats-row"><span>🔁 Tareas duplicadas</span><div class="bar-wrap"></div><span class="day-count">${s.duplicateExtraCount}</span>
+      ${s.duplicateExtraCount>0?`<button class="btn" style="font-size:11px;padding:5px 10px;margin-left:8px;" onclick="resolveCleanupDuplicates()">Resolver</button>`:''}</div>
+    <div class="stats-row"><span>📅 Tareas sin fecha</span><div class="bar-wrap"></div><span class="day-count">${s.noDateCount}</span>
+      ${s.noDateCount>0?`<button class="btn" style="font-size:11px;padding:5px 10px;margin-left:8px;" onclick="resolveCleanupNoDate()">Asignar hoy</button>`:''}</div>
+    <div class="stats-row"><span>⏰ Vencidas</span><div class="bar-wrap"></div><span class="day-count">${s.overdueCount}</span>
+      ${s.overdueCount>0?`<button class="btn" style="font-size:11px;padding:5px 10px;margin-left:8px;" onclick="selectView('filter','overdue')">Ver</button>`:''}</div>
+    <div class="stats-row"><span>📂 Listas vacías</span><div class="bar-wrap"></div><span class="day-count">${s.emptyListsCount}</span>
+      ${s.emptyListsCount>0?`<button class="btn" style="font-size:11px;padding:5px 10px;margin-left:8px;" onclick="resolveCleanupEmptyLists()">Eliminar</button>`:''}</div>
+    <div class="stats-row"><span>🔔 Recordatorios repetidos</span><div class="bar-wrap"></div><span class="day-count">${s.repeatedRemindersCount}</span>
+      ${s.repeatedRemindersCount>0?`<button class="btn" style="font-size:11px;padding:5px 10px;margin-left:8px;" onclick="resolveCleanupReminders()">Limpiar</button>`:''}</div>
+    ${s.total===0?'<div class="empty">🎉 Todo en orden, no hay nada para revisar.</div>':''}
+  `;
+}
+function resolveCleanupDuplicates(){
+  const { duplicateGroups } = computeCleanupStats();
+  const totalExtra = duplicateGroups.reduce((s,g)=>s+(g.length-1),0);
+  if(!confirm(`Se van a eliminar ${totalExtra} tarea(s) duplicada(s), dejando la más vieja de cada grupo. ¿Continuar?`)) return;
+  duplicateGroups.forEach(group=>{
+    group.sort((a,b)=>a.createdAt-b.createdAt);
+    group.slice(1).forEach(dup=>{ state.tasks = state.tasks.filter(t=>t.id!==dup.id); });
+  });
+  saveState(); render();
+  showToast('Duplicadas eliminadas');
+}
+function resolveCleanupNoDate(){
+  const affected = state.tasks.filter(t=>!t.done && !t.dueDate);
+  if(!confirm(`Se le va a asignar la fecha de hoy a ${affected.length} tarea(s) sin fecha. ¿Continuar?`)) return;
+  affected.forEach(t=> t.dueDate = todayISO());
+  saveState(); render();
+  showToast('Fechas asignadas');
+}
+function resolveCleanupEmptyLists(){
+  const empty = state.lists.filter(l=> !state.tasks.some(t=>t.listId===l.id));
+  if(!confirm(`Se van a eliminar ${empty.length} lista(s) vacía(s): ${empty.map(l=>l.name).join(', ')}. ¿Continuar?`)) return;
+  const emptyIds = new Set(empty.map(l=>l.id));
+  state.lists = state.lists.filter(l=> !emptyIds.has(l.id));
+  if(state.currentView.type==='list' && emptyIds.has(state.currentView.id)){
+    state.currentView = {type:'list', id: state.lists[0] ? state.lists[0].id : null};
+  }
+  saveState(); render();
+  showToast('Listas vacías eliminadas');
+}
+function resolveCleanupReminders(){
+  const affected = state.tasks.filter(t=> t.reminders && t.reminders.length !== new Set(t.reminders).size);
+  if(!confirm(`Se van a limpiar los recordatorios repetidos de ${affected.length} tarea(s). ¿Continuar?`)) return;
+  affected.forEach(t=>{ t.reminders = [...new Set(t.reminders)]; t.reminderDaysBefore = t.reminders[0] ?? null; });
+  saveState(); render();
+  showToast('Recordatorios limpiados');
+}
+
 function renderKanban(container){
   const pending = state.tasks.filter(t=>!t.done);
   container.innerHTML = `<div class="kanban-grid">
@@ -3452,6 +3558,7 @@ function render(){
     },
     week: ()=>{ titleEl.innerText='Semana'; subEl.innerText='Tus tareas de la semana'; addWrap.style.display='none'; renderWeek(body); },
     kanban: ()=>{ titleEl.innerText='Kanban'; subEl.innerText='Arrastrá tarjetas entre columnas para cambiar la prioridad'; addWrap.style.display='none'; renderKanban(body); },
+    cleanup: ()=>{ titleEl.innerText='Limpieza'; subEl.innerText='Cosas para revisar y resolver'; addWrap.style.display='none'; renderCleanupCenter(body); },
     agenda: ()=>{ titleEl.innerText='Agenda'; subEl.innerText='Vencidas y próximas, agrupadas por día'; addWrap.style.display='none'; renderAgenda(body); },
     upcoming: ()=>{ titleEl.innerText='Próximos'; subEl.innerText='Tareas con fecha, agrupadas por día'; addWrap.style.display='none'; renderUpcoming(body); }
   };
@@ -3460,6 +3567,7 @@ function render(){
   addWrap.style.display='block';
   if(v.type==='today'){ titleEl.innerText='Mi día'; subEl.innerText='Tareas de hoy y vencidas'; }
   else if(v.type==='important'){ titleEl.innerText='Importantes'; subEl.innerText='Tareas con prioridad alta'; }
+  else if(v.type==='favorites'){ titleEl.innerText='Favoritos'; subEl.innerText='Tareas que fijaste arriba de todo'; }
   else if(v.type==='tomorrow'){ titleEl.innerText='Mañana'; subEl.innerText='Tareas programadas para mañana'; }
   else if(v.type==='filter'){ const f = QUICK_FILTERS.find(f=>f.id===v.id); titleEl.innerText = f ? f.label : ''; subEl.innerText=''; }
   else { const l = state.lists.find(l=>l.id===v.id); titleEl.innerText = l ? l.name : ''; subEl.innerText=''; }
@@ -3469,10 +3577,13 @@ function render(){
   const done = tasks.filter(t=>t.done)
     .sort((a,b)=> (b.completedAtTime||0) - (a.completedAtTime||0));
 
-  if(v.type==='list'){ pending.sort((a,b)=> (a.order||0) - (b.order||0)); }
-  else {
+  if(v.type==='list'){
+    pending.sort((a,b)=> (b.favorite?1:0) - (a.favorite?1:0) || (a.order||0) - (b.order||0));
+  } else {
     const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
     pending.sort((a,b)=> {
+      const favDiff = (b.favorite?1:0) - (a.favorite?1:0);
+      if(favDiff !== 0) return favDiff;
       const diff = (prioOrder[a.priority]??3) - (prioOrder[b.priority]??3);
       return diff !== 0 ? diff : (a.order||0) - (b.order||0);
     });
