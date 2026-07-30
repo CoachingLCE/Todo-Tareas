@@ -475,11 +475,13 @@
   .action-sheet-btn.danger{color:var(--high);}
   .mobile-only-nav{display:none;}
   .mobile-stats-strip{display:none;}
+  .nav-more-collapsible{display:none;}
+  .nav-more-collapsible.expanded{display:block;}
+  #nav-more-toggle{color:var(--text-muted);}
+  #nav-more-toggle .nav-more-chevron{transition:transform .15s;}
+  #nav-more-toggle.expanded .nav-more-chevron{transform:rotate(180deg);}
   @media (max-width: 768px){
     .mobile-only-nav{display:flex;}
-    .mobile-collapsible-nav{display:none;}
-    .mobile-collapsible-nav.expanded{display:block;}
-    #mobile-nav-more-toggle{color:var(--accent);font-weight:600;}
     .mobile-stats-strip{display:flex;gap:14px;justify-content:center;padding-bottom:6px;font-size:11.5px;color:var(--text-muted);}
     .mobile-stats-strip strong{color:var(--text);font-size:12.5px;}
     .mobile-stats-strip .overdue-num{color:var(--high);}
@@ -1148,8 +1150,10 @@ function toggleMobileSidebar(){
   document.getElementById('sidebar-backdrop').classList.toggle('mobile-open', open);
 }
 
-function toggleMobileNavMore(){
-  document.getElementById('mobile-collapsible-nav').classList.toggle('expanded');
+let navMoreExpanded = false;
+function toggleNavMore(){
+  navMoreExpanded = !navMoreExpanded;
+  renderSidebar();
 }
 
 function toggleSection(key){
@@ -2942,7 +2946,7 @@ function renderSidebar(){
     ${sl.hoy!==false ? `<div class="nav-item ${state.currentView.type==='today'?'active':''}" onclick="selectView('today', null)"><span class="nav-icon">${icon('sun')}</span><span>Mi día</span><span class="count">${todayCount||''}</span></div>` : ''}
     <div class="nav-item ${state.currentView.type==='upcoming'?'active':''}" onclick="selectView('upcoming', null)"><span class="nav-icon">${icon('clipboard')}</span><span>Próximos</span><span class="count">${upcomingCount||''}</span></div>
     <div class="nav-item mobile-only-nav ${state.currentView.type==='filter'&&state.currentView.id==='overdue'?'active':''}" onclick="selectView('filter','overdue')"><span class="nav-icon">${icon('clock')}</span><span>Vencidas</span></div>
-    <div class="mobile-collapsible-nav" id="mobile-collapsible-nav">
+    <div class="nav-more-collapsible ${navMoreExpanded?'expanded':''}" id="nav-more-collapsible">
       ${sl.importantes!==false ? `<div class="nav-item ${state.currentView.type==='important'?'active':''}" onclick="selectView('important', null)"><span class="nav-icon">${icon('star')}</span><span>Importantes</span><span class="count">${impCount||''}</span></div>` : ''}
       <div class="nav-item ${state.currentView.type==='favorites'?'active':''}" onclick="selectView('favorites', null)"><span class="nav-icon">⭐</span><span>Favoritos</span><span class="count">${favCount||''}</span></div>
       <div class="nav-item ${state.currentView.type==='calendar'?'active':''}" onclick="selectView('calendar', null)"><span class="nav-icon">${icon('calendar')}</span><span>Calendario</span></div>
@@ -2952,7 +2956,7 @@ function renderSidebar(){
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
       <div class="nav-item ${state.currentView.type==='week'?'active':''}" onclick="selectView('week', null)"><span class="nav-icon">${icon('calendarDays')}</span><span>Semana</span></div>
     </div>
-    <div class="nav-item mobile-only-nav" id="mobile-nav-more-toggle" onclick="toggleMobileNavMore()"><span class="nav-icon">⋯</span><span>Ver más</span></div>
+    <div class="nav-item ${navMoreExpanded?'expanded':''}" id="nav-more-toggle" onclick="toggleNavMore()"><span class="nav-icon nav-more-chevron">⌄</span><span id="nav-more-label">${navMoreExpanded?'Menos':'Más'}</span></div>
   `;
 
   const filtersCollapsed = !!(state.collapsedSections && state.collapsedSections.filters);
