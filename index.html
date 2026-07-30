@@ -589,7 +589,7 @@ let lastDeleted = null;
 let toastTimer = null;
 let selectMode = false;
 let selectedIds = new Set();
-let collapsedSections = {};
+// (el plegado de secciones del sidebar ahora vive en state.collapsedSections, persistente)
 let focusMode = false;
 let justAddedTaskId = null;
 
@@ -1148,7 +1148,9 @@ function toggleMobileNavMore(){
 }
 
 function toggleSection(key){
-  collapsedSections[key] = !collapsedSections[key];
+  if(!state.collapsedSections) state.collapsedSections = {};
+  state.collapsedSections[key] = !state.collapsedSections[key];
+  saveState();
   renderSidebar();
 }
 
@@ -2888,7 +2890,7 @@ function renderSidebar(){
     <div class="nav-item mobile-only-nav" id="mobile-nav-more-toggle" onclick="toggleMobileNavMore()"><span class="nav-icon">⋯</span><span>Ver más</span></div>
   `;
 
-  const filtersCollapsed = !!collapsedSections.filters;
+  const filtersCollapsed = !!(state.collapsedSections && state.collapsedSections.filters);
   document.getElementById('filters-toggle').classList.toggle('collapsed', filtersCollapsed);
   const qf = document.getElementById('quick-filters');
   qf.className = 'section-body' + (filtersCollapsed ? ' collapsed' : '');
@@ -2898,7 +2900,7 @@ function renderSidebar(){
   }).join('');
 
   const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos' };
-  const listsCollapsed = !!collapsedSections.lists;
+  const listsCollapsed = !!(state.collapsedSections && state.collapsedSections.lists);
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
   const listsEl = document.getElementById('lists');
   listsEl.className = 'section-body' + (listsCollapsed ? ' collapsed' : '');
