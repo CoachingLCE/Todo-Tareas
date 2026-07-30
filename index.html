@@ -168,6 +168,12 @@
   .select-box{width:16px;height:16px;border-radius:5px;border:2px solid var(--border-strong);cursor:pointer;margin-top:2px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
   .select-box.checked{background:var(--accent);border-color:var(--accent);}
   .task-body{flex:1;min-width:0;}
+  .youtube-card{margin-bottom:9px;}
+  .youtube-thumb{width:100%;max-width:320px;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius-sm);display:block;background:var(--bg);}
+  .youtube-thumb-loading{display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--text-muted);}
+  .youtube-card-meta{display:flex;gap:6px;margin-top:6px;}
+  .youtube-watch-btn{display:inline-block;margin-top:7px;font-size:12px;font-weight:600;color:var(--accent-strong);text-decoration:none;}
+  .youtube-watch-btn:hover{text-decoration:underline;}
   .task-title{font-size:14.5px;font-weight:600;cursor:pointer;line-height:1.35;letter-spacing:-.005em;}
   .task-title:hover{color:var(--accent-strong);}
   .task.done .task-title{text-decoration:line-through;color:var(--text-muted);}
@@ -823,6 +829,10 @@ function migrateState(){
     if(t.recurrence === undefined) t.recurrence = null;
     if(t.reminderDaysBefore === undefined) t.reminderDaysBefore = null;
     if(t.completedAtTime === undefined) t.completedAtTime = null;
+    if(t.youtubeUrl === undefined) t.youtubeUrl = null;
+    if(t.youtubeTitle === undefined) t.youtubeTitle = null;
+    if(t.youtubeThumbnail === undefined) t.youtubeThumbnail = null;
+    if(t.youtubeAuthor === undefined) t.youtubeAuthor = null;
     if(!t.reminders){
       t.reminders = (t.reminderDaysBefore !== null && t.reminderDaysBefore !== undefined) ? [t.reminderDaysBefore] : [];
     }
@@ -1374,6 +1384,30 @@ function getOrCreatePersonalListId(){
   return list.id;
 }
 
+/** Detecta si el texto contiene un link de YouTube (watch, youtu.be o shorts). */
+function extractYouTubeUrl(text){
+  const m = text.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)[\w-]+\S*)/i);
+  return m ? m[0] : null;
+}
+function extractYouTubeVideoId(url){
+  const m = url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+/** Trae título y miniatura reales vía la API pública de YouTube (oEmbed, sin necesidad de clave). */
+async function fetchYouTubeMetadata(taskId, url){
+  try{
+    const resp = await fetch('https://www.youtube.com/oembed?url='+encodeURIComponent(url)+'&format=json');
+    if(!resp.ok) throw new Error('oEmbed falló');
+    const data = await resp.json();
+    const t = state.tasks.find(t=>t.id===taskId);
+    if(!t) return;
+    t.youtubeTitle = data.title || null;
+    t.youtubeThumbnail = data.thumbnail_url || null;
+    t.youtubeAuthor = data.author_name || null;
+    saveState(); render();
+  }catch(e){ console.error('No se pudo obtener la miniatura de YouTube', e); }
+}
+
 function addTask(){
   const input = document.getElementById('new-task-title');
   const raw = input.value.trim();
@@ -1393,9 +1427,11 @@ function addTask(){
     id: uid(), listId: targetListId, title: finalTitle || raw, done: false,
     priority: finalPriority, tags: [], subtasks: [], notes: '', dueDate: finalDate,
     createdAt: Date.now(), completedAt: null, order: maxOrder+1,
-    recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null
+    recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null,
+    youtubeUrl: extractYouTubeUrl(raw), youtubeTitle: null, youtubeThumbnail: null, youtubeAuthor: null
   };
   state.tasks.push(newTask);
+  if(newTask.youtubeUrl) fetchYouTubeMetadata(newTask.id, newTask.youtubeUrl);
   haptic(15);
   justAddedTaskId = newTask.id;
 
@@ -2987,6 +3023,20 @@ function applyOrganizeSuggestions(){
 /* =====================================================================
    RENDER: TARJETA DE TAREA
    ===================================================================== */
+/** Tarjeta multimedia para tareas que son un link de YouTube (miniatura real vía oEmbed). */
+function renderYoutubeCard(t){
+  const thumb = t.youtubeThumbnail;
+  return `
+    <div class="youtube-card" onclick="event.stopPropagation()">
+      ${thumb ? `<img src="${thumb}" alt="" class="youtube-thumb">` : `<div class="youtube-thumb youtube-thumb-loading">🎥</div>`}
+      <div class="youtube-card-meta">
+        <span class="tag">🎥 YouTube</span>
+        ${t.youtubeAuthor ? `<span class="tag">${escapeHtml(t.youtubeAuthor)}</span>` : ''}
+      </div>
+      <a href="${t.youtubeUrl}" target="_blank" rel="noopener noreferrer" class="youtube-watch-btn">▶ Ver en YouTube</a>
+    </div>`;
+}
+
 function renderTaskCard(t){
   const list = state.lists.find(l=>l.id===t.listId);
   const isExpanded = !!expanded[t.id];
@@ -3008,7 +3058,8 @@ function renderTaskCard(t){
       ${selectMode ? `<div class="select-box ${isSelected?'checked':''}" onclick="toggleSelectTask('${t.id}',event)">${isSelected?'✓':''}</div>` : ''}
       <div class="checkbox ${t.done?'checked':''}" onclick="handleCompleteClick('${t.id}', event)">${t.done?'✓':''}</div>
       <div class="task-body">
-        <div class="task-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</div>
+        ${t.youtubeUrl ? renderYoutubeCard(t) : ''}
+        <div class="task-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.youtubeTitle || t.title)}</div>
         ${t.done && formatCompletedWhen(t) ? `<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">✓ ${formatCompletedWhen(t)}</div>` : ''}
         <div class="task-meta">
           ${t.priority ? `<span class="badge ${t.priority==='alta'?'high':t.priority==='media'?'med':'low'}" onclick="cyclePriority('${t.id}')" style="cursor:pointer">${priorityIcon(t.priority)} ${priorityLabel(t.priority)}</span>` : ''}
