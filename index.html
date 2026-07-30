@@ -291,10 +291,12 @@
   .search-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,15,10,.4);display:flex;justify-content:center;padding-top:80px;z-index:999;}
   .search-box{background:var(--card);border-radius:var(--radius-lg);width:540px;max-width:92vw;max-height:70vh;overflow-y:auto;box-shadow:var(--shadow-lg);padding:18px;}
   .search-box input{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:14px;background:var(--bg);color:var(--text);margin-bottom:12px;}
-  .search-result{padding:10px 11px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;}
+  .search-result{padding:11px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;margin-bottom:2px;}
   .search-result:hover{background:var(--bg);}
   .search-result .r-title{font-weight:500;}
   .search-result .r-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .search-result .r-meta-rich{display:flex;flex-wrap:wrap;gap:5px 10px;font-size:11.5px;color:var(--text-muted);margin-top:6px;}
+  .search-result mark{background:var(--accent-bg);color:var(--accent-strong);border-radius:3px;padding:0 2px;}
 
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--card);padding:11px 20px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:16px;z-index:998;box-shadow:var(--shadow-lg);animation:toastIn .18s var(--ease);}
   @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px);}to{opacity:1;transform:translate(-50%,0);}}
@@ -878,6 +880,7 @@ function migrateState(){
     if(t.recurrence === undefined) t.recurrence = null;
     if(t.reminderDaysBefore === undefined) t.reminderDaysBefore = null;
     if(t.completedAtTime === undefined) t.completedAtTime = null;
+    if(!t.updatedAt) t.updatedAt = t.createdAt || Date.now();
     if(typeof t.favorite !== 'boolean') t.favorite = false;
     if(t.youtubeUrl === undefined) t.youtubeUrl = null;
     if(t.youtubeTitle === undefined) t.youtubeTitle = null;
@@ -1644,15 +1647,16 @@ function cyclePriority(id){
   const order = [null,'alta','media','baja'];
   const idx = order.indexOf(t.priority);
   t.priority = order[(idx+1)%order.length];
+  t.updatedAt = Date.now();
   saveState(); render();
 }
 function setPriority(id, p){
   const t = state.tasks.find(t=>t.id===id);
-  if(t){ t.priority = p; saveState(); render(); }
+  if(t){ t.priority = p; t.updatedAt = Date.now(); saveState(); render(); }
 }
 function toggleFavorite(id){
   const t = state.tasks.find(t=>t.id===id);
-  if(t){ t.favorite = !t.favorite; saveState(); render(); showToast(t.favorite ? 'Fijada como favorita' : 'Quitada de favoritos'); }
+  if(t){ t.favorite = !t.favorite; t.updatedAt = Date.now(); saveState(); render(); showToast(t.favorite ? 'Fijada como favorita' : 'Quitada de favoritos'); }
 }
 
 function toggleExpand(id){ expanded[id] = !expanded[id]; render(); }
@@ -1683,12 +1687,14 @@ function addTag(taskId){
   if(!tag) return;
   const t = state.tasks.find(t=>t.id===taskId);
   if(!t.tags.includes(tag)) t.tags.push(tag);
+  t.updatedAt = Date.now();
   input.value='';
   saveState(); render();
 }
 function removeTag(taskId, tag){
   const t = state.tasks.find(t=>t.id===taskId);
   t.tags = t.tags.filter(x=>x!==tag);
+  t.updatedAt = Date.now();
   saveState(); render();
 }
 
@@ -2174,6 +2180,19 @@ function openSearch(){
   setTimeout(()=>{ const el = document.getElementById('search-input'); if(el) el.focus(); }, 30);
 }
 function closeSearchOverlay(evt){ if(evt) evt.stopPropagation(); document.getElementById('search-container').innerHTML=''; }
+/** Formatea un timestamp como "hoy", "ayer" o "hace N días/meses", para los resultados de búsqueda. */
+function formatRelativeTime(ts){
+  if(!ts) return null;
+  const dISO = toISO(new Date(ts));
+  const t0 = todayISO();
+  if(dISO === t0) return 'hoy';
+  if(dISO === yesterdayISO()) return 'ayer';
+  const days = Math.round((new Date(t0) - new Date(dISO)) / 86400000);
+  if(days < 30) return `hace ${days} día${days===1?'':'s'}`;
+  const months = Math.round(days/30);
+  return `hace ${months} mes${months===1?'':'es'}`;
+}
+
 function runSearch(){
   const q = normalize(document.getElementById('search-input').value.trim());
   const results = document.getElementById('search-results');
@@ -2187,13 +2206,44 @@ function runSearch(){
       || normalize(t.notes||'').includes(q);
   }).slice(0,30);
   if(matches.length===0){ results.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
-  results.innerHTML = matches.map(t=>{
-    const list = state.lists.find(l=>l.id===t.listId);
-    return `<div class="search-result" onclick="goToTaskFromSearch('${t.id}')">
-      <div class="r-title">${escapeHtml(t.title)}</div>
-      <div class="r-meta">${list?escapeHtml(list.name):''} ${t.dueDate?'· '+t.dueDate:''} ${t.tags.length?'· '+t.tags.map(escapeHtml).join(', '):''}</div>
-    </div>`;
-  }).join('');
+  results.innerHTML = matches.map(t=>renderSearchResult(t, q)).join('');
+}
+
+/** Resalta las coincidencias del texto buscado dentro de un título. */
+function highlightMatch(text, q){
+  if(!q) return escapeHtml(text);
+  const norm = normalize(text);
+  const idx = norm.indexOf(q);
+  if(idx===-1) return escapeHtml(text);
+  return escapeHtml(text.slice(0,idx)) + '<mark>' + escapeHtml(text.slice(idx, idx+q.length)) + '</mark>' + escapeHtml(text.slice(idx+q.length));
+}
+
+/** Arma un resultado de búsqueda con toda la información contextual (lista, prioridad, fechas, estado, etc). */
+function renderSearchResult(t, q){
+  const list = state.lists.find(l=>l.id===t.listId);
+  const bits = [];
+  if(list) bits.push(`📂 ${escapeHtml(list.name)}`);
+  if(t.priority) bits.push(`${priorityIcon(t.priority)} Prioridad ${priorityLabel(t.priority).toLowerCase()}`);
+
+  if(t.done){
+    bits.push(`🟢 Completada`);
+    if(t.completedAtTime) bits.push(`✅ Finalizada ${formatRelativeTime(t.completedAtTime)}`);
+  } else {
+    const dateInfo = dateLabelFor(t.dueDate, t.done);
+    bits.push(dateInfo ? `📅 Vence ${dateInfo.text.toLowerCase()}` : '📅 Sin fecha');
+    bits.push('⏳ Estado: Pendiente');
+  }
+  if(t.createdAt) bits.push(`🕒 Creada ${formatRelativeTime(t.createdAt)}`);
+  if(t.updatedAt && Math.abs(t.updatedAt - t.createdAt) > 60000) bits.push(`✏️ Modificada ${formatRelativeTime(t.updatedAt)}`);
+  if(t.tags.length) bits.push(`🏷️ ${t.tags.map(escapeHtml).join(', ')}`);
+  if(t.subtasks.length) bits.push(`☑️ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length} subtareas`);
+  if(t.recurrence) bits.push(`🔁 Se repite`);
+  if(t.youtubeUrl) bits.push(`🎥 Video de YouTube`);
+
+  return `<div class="search-result" onclick="goToTaskFromSearch('${t.id}')">
+    <div class="r-title">📋 ${highlightMatch(t.youtubeTitle || t.title, q)}</div>
+    <div class="r-meta-rich">${bits.map(b=>`<span>${b}</span>`).join('')}</div>
+  </div>`;
 }
 function goToTaskFromSearch(taskId){
   const t = state.tasks.find(t=>t.id===taskId);
@@ -2324,6 +2374,7 @@ function closeModal(evt){ if(evt) evt.stopPropagation(); document.getElementById
 function saveEditModal(taskId){
   const t = state.tasks.find(t=>t.id===taskId);
   if(!t) return;
+  t.updatedAt = Date.now();
   t.title = document.getElementById('edit-title').value.trim() || t.title;
   t.listId = document.getElementById('edit-list').value;
   t.dueDate = document.getElementById('edit-date').value || null;
