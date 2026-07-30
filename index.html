@@ -601,7 +601,7 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.14.1';
+const APP_VERSION = '1.14.2';
 
 /* =====================================================================
    ÍCONOS (SVG estilo Lucide, en vez de emojis, para una imagen más profesional)
@@ -1151,7 +1151,7 @@ function toggleMobileSidebar(){
   document.getElementById('sidebar-backdrop').classList.toggle('mobile-open', open);
 }
 
-let navMoreExpanded = false;
+let navMoreExpanded = true;
 function toggleNavMore(){
   navMoreExpanded = !navMoreExpanded;
   renderSidebar();
