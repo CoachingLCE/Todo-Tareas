@@ -110,9 +110,8 @@
   .organize-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:none;
     border-radius:var(--radius-lg);padding:15px 20px;font-size:14.5px;font-weight:600;cursor:pointer;display:flex;
     align-items:center;gap:10px;justify-content:center;margin:14px 0;box-shadow:var(--shadow-md);
-    transition:transform .15s,box-shadow .15s,padding .28s var(--ease),font-size .28s var(--ease),margin .28s var(--ease);}
-  .organize-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg);}
-  .organize-btn:active{transform:translateY(0);}
+    transition:padding .28s var(--ease),font-size .28s var(--ease),margin .28s var(--ease),box-shadow .15s;}
+  .organize-btn:hover{box-shadow:var(--shadow-lg);}
   .organize-btn.compact{padding:8px 16px;font-size:12.5px;margin:8px 0 4px;gap:7px;}
   .organize-suggestion-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
   .organize-suggestion-row:last-child{border-bottom:none;}
@@ -755,10 +754,8 @@ async function loadState(){
   migrateState();
   applyTheme();
   render();
-  // Header inteligente al scrollear: DESACTIVADO (2da vez con glitch visual, sin poder
-  // verificarlo en vivo en el dispositivo real). El código queda armado por si se retoma
-  // más adelante con la posibilidad de probarlo en el navegador real antes de confirmarlo.
   attachSwipeHandlers();
+  attachDashboardScrollListener();
   renderReminderBanner();
   maybeShowWelcomeMessage();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
@@ -2574,7 +2571,11 @@ function toggleDashboardDetails(){ dashboardDetailsOpen = !dashboardDetailsOpen;
  * nunca se pierde aunque algo dispare un re-render mientras el usuario está scrolleado.
  */
 let isHeaderCompact = false;
-const HEADER_COMPACT_THRESHOLD = 130;
+// Dos umbrales en vez de uno: compacta al pasar 150px, pero solo vuelve a expandirse
+// al bajar de 60px. Esa "zona muerta" entre ambos evita que la clase se prenda y apague
+// muchas veces por segundo si el scroll queda flotando justo en el límite.
+const HEADER_COMPACT_ENTER = 150;
+const HEADER_COMPACT_EXIT = 60;
 let headerScrollRaf = false;
 
 function applyHeaderCompactClasses(){
@@ -2590,7 +2591,10 @@ function onMainScrollForHeader(){
     headerScrollRaf = false;
     const mainEl = document.querySelector('.main');
     if(!mainEl) return;
-    const shouldBeCompact = mainEl.scrollTop > HEADER_COMPACT_THRESHOLD;
+    const y = mainEl.scrollTop;
+    let shouldBeCompact = isHeaderCompact;
+    if(!isHeaderCompact && y > HEADER_COMPACT_ENTER) shouldBeCompact = true;
+    else if(isHeaderCompact && y < HEADER_COMPACT_EXIT) shouldBeCompact = false;
     if(shouldBeCompact !== isHeaderCompact){
       isHeaderCompact = shouldBeCompact;
       applyHeaderCompactClasses();
