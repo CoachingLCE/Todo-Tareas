@@ -3113,7 +3113,7 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 function renderDayProgress(){
   if(state.currentView.type === 'list'){
     const currentListForSummary = state.lists.find(l=>l.id===state.currentView.id);
-    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
+    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary) || isMovieList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
     renderListSummary(state.currentView.id); return;
   }
   const t0 = todayISO();
@@ -3869,6 +3869,44 @@ function editEpisodeDuration(id){
   saveState(); render();
 }
 
+/* =====================================================================
+   MÓDULO "PELÍCULAS" — quiero ver, vistas, favoritas
+   ===================================================================== */
+function isMovieList(list){ return list && normalize(list.name).includes('pelicula'); }
+function renderMovieModule(listId, container){
+  const movies = state.tasks.filter(t=>t.listId===listId);
+  const wantToWatch = movies.filter(t=>!t.done);
+  const watched = movies.filter(t=>t.done);
+  const favorites = movies.filter(t=>t.favorite);
+
+  const movieRow = (t, extra) => `
+    <div class="reading-row" data-task-id="${t.id}">
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${t.favorite?'⭐ ':''}${escapeHtml(t.title)}</span>
+      ${extra}
+      <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="stats-hero" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stats-hero-card"><div class="hero-num">${watched.length}</div><div class="hero-label">vistas</div></div>
+      <div class="stats-hero-card"><div class="hero-num">${favorites.length}</div><div class="hero-label">favoritas</div></div>
+    </div>
+    ${wantToWatch.length ? `
+      <div class="task-group-label">🎬 Quiero ver</div>
+      ${wantToWatch.map(t=>movieRow(t, `<button class="icon-btn" onclick="handleCompleteClick('${t.id}', event)" title="Marcar como vista">✓</button>`)).join('')}
+    ` : ''}
+    ${favorites.length ? `
+      <div class="task-group-label">⭐ Favoritas</div>
+      ${favorites.map(t=>movieRow(t, '')).join('')}
+    ` : ''}
+    ${watched.filter(t=>!t.favorite).length ? `
+      <div class="task-group-label">✅ Vistas</div>
+      ${watched.filter(t=>!t.favorite).map(t=>movieRow(t, `<span style="font-size:11px;color:var(--text-muted);">${t.completedAt||''}</span>`)).join('')}
+    ` : ''}
+    ${movies.length===0 ? '<div class="empty">No hay películas todavía. Agregá la primera arriba 🎬</div>' : ''}
+  `;
+}
+
 function renderReadingModule(listId, container){
   const list = state.lists.find(l=>l.id===listId);
   const books = state.tasks.filter(t=>t.listId===listId);
@@ -4083,6 +4121,14 @@ function render(){
       addWrap.style.display='block';
       document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
       renderPodcastModule(v.id, body);
+      return;
+    }
+    if(isMovieList(currentListForModule)){
+      titleEl.innerText = currentListForModule.name;
+      subEl.innerText = 'Tu cine personal';
+      addWrap.style.display='block';
+      document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
+      renderMovieModule(v.id, body);
       return;
     }
   }
