@@ -302,6 +302,12 @@
   .modal-box{background:var(--card);border-radius:var(--radius-lg);padding:26px;width:460px;max-width:92vw;max-height:86vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
   .modal-box h2{font-size:17.5px;font-weight:600;margin:0 0 18px;letter-spacing:-.01em;}
   .field-label{font-size:11.5px;color:var(--text-muted);margin:13px 0 5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+  /* Efecto "se va iluminando de a poco": cada sección arranca oscura y se ilumina en cascada, acompañando la lectura. */
+  @keyframes helpReveal{
+    from{opacity:.14;filter:brightness(.45);transform:translateY(4px);}
+    to{opacity:1;filter:brightness(1);transform:translateY(0);}
+  }
+  .help-section{opacity:.14;animation:helpReveal .55s ease-out forwards;}
   .modal-box input[type=text],.modal-box textarea,.modal-box select,.modal-box input[type=date],.modal-box input[type=number]{
     width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;font-size:13.5px;background:var(--bg);color:var(--text);font-family:inherit;
   }
@@ -2189,39 +2195,53 @@ function openHelp(){
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal-box" onclick="event.stopPropagation()">
         <h2>Cómo funciona</h2>
+        <div class="help-section" style="animation-delay:.05s">
         <div class="field-label" style="margin-top:0;">Agregar tareas más rápido</div>
         <div style="font-size:13px;line-height:1.6;color:var(--text-2);">
           Escribí frases como <strong>"Llamar al cliente mañana urgente"</strong> — la app detecta sola la fecha
           y la prioridad, y te muestra chips antes de agregar.
         </div>
+        </div>
+        <div class="help-section" style="animation-delay:.18s">
         <div class="field-label">Vistas</div>
         <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
           <strong>Mi día</strong>: tareas de hoy y vencidas · <strong>Próximos</strong>: fechas futuras ·
           <strong>Agenda</strong>: vencidas + próximas por día · <strong>Semana</strong> y <strong>Calendario</strong>: vista temporal con drag&drop ·
           <strong>Kanban</strong>: columnas por prioridad, arrastrá tarjetas entre ellas.
         </div>
+        </div>
+        <div class="help-section" style="animation-delay:.31s">
         <div class="field-label">Organización</div>
         <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
           Arrastrá listas y tareas para reordenarlas o moverlas entre listas. Click derecho sobre una tarea
           abre un menú rápido. El botón ☑️ activa selección múltiple para acciones masivas.
         </div>
+        </div>
+        <div class="help-section" style="animation-delay:.44s">
         <div class="field-label">IA</div>
         <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
           Dentro de cada tarea (✎ Editar) hay acciones de IA: dividir en subtareas, sugerir prioridad,
           estimar tiempo, sugerir fecha límite o etiquetas, y resumir notas.
         </div>
+        </div>
+        <div class="help-section" style="animation-delay:.57s">
         <div class="field-label">Productividad</div>
         <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
           ⏱️ Pomodoro con foco/descanso · 🎯 Modo concentración (oculta distracciones) · recordatorios configurables por tarea.
         </div>
+        </div>
+        <div class="help-section" style="animation-delay:.7s">
         <div class="field-label">Modo oscuro automático</div>
         <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
           Por defecto, la app se pone oscura sola después del atardecer y clara después del amanecer, calculado según tu ubicación
           (o Buenos Aires si no la compartís). Si tocás el botón 🌙/☀️ manualmente, queda fijo en esa elección y deja de cambiar solo.
         </div>
+        </div>
+        <div class="help-section" style="animation-delay:.83s">
         <div class="field-label">Atajos de teclado</div>
         <div style="font-size:13px;line-height:1.7;color:var(--text-2);">
           <strong>/</strong> buscar · <strong>n</strong> nueva tarea · <strong>f</strong> modo foco · <strong>Esc</strong> cerrar ventanas
+        </div>
         </div>
         <div class="modal-actions">
           <div></div>
