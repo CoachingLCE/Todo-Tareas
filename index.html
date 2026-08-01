@@ -1315,7 +1315,7 @@ const SMART_LIST_RULES = [
   { match: /\bescuchar\b|\bpodcast(s)?\b/, listName: '🎧 Podcasts', color:'#2f9e5b' },
   { match: /\bvideo(s)?\b|\byoutube\b/, listName: '▶️ Videos/YouTube', color:'#cc3333' },
   { match: /\bmedico(s)?\b|\bturno(s)?\b|\bdoctor(a)?\b|\bdentista\b|\bodontolog[oi](a)?\b|\boftalmolog[oi](a)?\b|\bvacuna(s)?\b|\bchequeo(s)?\b|\bclinico\b|\bcontrol medico\b/, listName: '🏥 Turnos Médicos', color:'#d6455c' },
-  { match: /\bcomprar\b|\bbebida(s)?\b|\balimento(s)?\b|\bverdura(s)?\b|\bfruta(s)?\b|\bsupermercado\b|\balmacen\b|\bzanahoria(s)?\b|\blechuga(s)?\b|\btomate(s)?\b|\bpapa(s)?\b|\bcebolla(s)?\b|\bpimiento(s)?\b|\bmanzana(s)?\b|\bbanana(s)?\b|\bnaranja(s)?\b|\bleche\b|\bpan\b|\bhuevo(s)?\b|\bcarne\b|\bpollo\b|\bpescado\b|\barroz\b|\bfideos\b|\baceite\b|\bazucar\b|\bsal\b|\byerba\b|\bcafe\b|\bte\b|\bagua\b|\bgaseosa(s)?\b|\bcerveza(s)?\b|\bvino\b|\bqueso\b|\bmanteca\b|\byogur(t)?\b|\bharina\b|\bfideo(s)?\b|\bgalletitas\b|\bjabon\b|\bpapel higienico\b|\bdetergente\b/, listName: 'Compras', color:'#3f95a8' }
+  { match: /\bcomprar\b|\bbebida(s)?\b|\balimento(s)?\b|\bverdura(s)?\b|\bfruta(s)?\b|\bsupermercado\b|\balmacen\b|\bzanahoria(s)?\b|\blechuga(s)?\b|\btomate(s)?\b|\bpapa(s)?\b|\bcebolla(s)?\b|\bpimiento(s)?\b|\bmanzana(s)?\b|\bbanana(s)?\b|\bnaranja(s)?\b|\bleche\b|\bpan\b|\bhuevo(s)?\b|\bcarne\b|\bpollo\b|\bpescado\b|\barroz\b|\bfideos\b|\baceite\b|\bazucar\b|\bsal\b|\byerba\b|\bcafe\b|\bte\b|\bagua\b|\bgaseosa(s)?\b|\bcerveza(s)?\b|\bvino\b|\bqueso\b|\bmanteca\b|\byogur(t)?\b|\bharina\b|\bfideo(s)?\b|\bgalletitas\b|\bjabon\b|\bpapel higienico\b|\bdetergente\b/, listName: '🛒 Compras', color:'#3f95a8' }
 ];
 function detectSmartListOverride(text){
   const norm = normalize(text);
@@ -1325,7 +1325,8 @@ function detectSmartListOverride(text){
   return null;
 }
 function getOrCreateListByName(name, color){
-  let list = state.lists.find(l=> normalize(l.name)===normalize(name));
+  const stripDecorations = s => normalize(s).replace(/[^\w\s]/g, '').trim();
+  let list = state.lists.find(l=> stripDecorations(l.name)===stripDecorations(name));
   if(!list){ list = { id: uid(), name, color: color||'#3b6bf0' }; state.lists.push(list); }
   return list;
 }
