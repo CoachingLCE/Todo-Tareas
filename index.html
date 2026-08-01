@@ -270,6 +270,10 @@
   .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
   .chart-card canvas{max-height:220px;}
   .stats-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .reading-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .reading-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;}
+  .reading-title{flex:1;font-size:13.5px;font-weight:500;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .reading-pct{font-size:12px;color:var(--text-muted);font-weight:600;min-width:32px;text-align:right;}
   .stats-hero-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;text-align:center;box-shadow:var(--shadow-sm);}
   .stats-hero-card .hero-icon{color:var(--accent);margin-bottom:8px;}
   .stats-hero-card .hero-num{font-size:25px;font-weight:700;letter-spacing:-.01em;}
@@ -904,6 +908,7 @@ function migrateState(){
     if(t.completedAtTime === undefined) t.completedAtTime = null;
     if(!t.updatedAt) t.updatedAt = t.createdAt || Date.now();
     if(t.dueTime === undefined) t.dueTime = null;
+    if(typeof t.readingProgress !== 'number') t.readingProgress = 0;
     if(typeof t.favorite !== 'boolean') t.favorite = false;
     if(t.youtubeUrl === undefined) t.youtubeUrl = null;
     if(t.youtubeTitle === undefined) t.youtubeTitle = null;
@@ -3104,7 +3109,11 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 }
 
 function renderDayProgress(){
-  if(state.currentView.type === 'list'){ renderListSummary(state.currentView.id); return; }
+  if(state.currentView.type === 'list'){
+    const currentListForSummary = state.lists.find(l=>l.id===state.currentView.id);
+    if(isReadingList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
+    renderListSummary(state.currentView.id); return;
+  }
   const t0 = todayISO();
   const tmr = tomorrowISO();
   const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
@@ -3803,6 +3812,85 @@ function resolveCleanupReminders(){
   showToast('Recordatorios limpiados');
 }
 
+/* =====================================================================
+   MÓDULO "LEER" — biblioteca, no lista de tareas
+   ===================================================================== */
+function isReadingList(list){ return list && normalize(list.name).includes('leer'); }
+
+function renderReadingModule(listId, container){
+  const list = state.lists.find(l=>l.id===listId);
+  const books = state.tasks.filter(t=>t.listId===listId);
+  const reading = books.filter(t=>!t.done && t.readingProgress>0);
+  const pending = books.filter(t=>!t.done && !(t.readingProgress>0));
+  const finished = books.filter(t=>t.done);
+  const year = new Date().getFullYear();
+  const goal = (state.settings && state.settings.readingGoal) || 12;
+  const finishedThisYear = finished.filter(t=> t.completedAt && t.completedAt.startsWith(String(year))).length;
+  const goalPct = Math.min(100, Math.round((finishedThisYear/goal)*100));
+
+  const bookRow = (t, extra='') => `
+    <div class="reading-row" data-task-id="${t.id}">
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</span>
+      ${extra}
+      <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="reading-goal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:600;font-size:13.5px;">🎯 Objetivo anual ${year}</span>
+        <span style="font-size:13px;color:var(--text-muted);cursor:pointer;" onclick="editReadingGoal()">${finishedThisYear} / ${goal} libros ✎</span>
+      </div>
+      <div class="dpc-progress-wrap" style="margin-top:8px;"><div class="dpc-progress-bar" style="width:${goalPct}%;"></div></div>
+    </div>
+
+    ${reading.length ? `
+      <div class="task-group-label">📖 Estoy leyendo</div>
+      ${reading.map(t=>bookRow(t, `
+        <input type="range" min="0" max="100" value="${t.readingProgress}" oninput="updateReadingProgress('${t.id}', this.value)" style="flex:1;margin:0 10px;">
+        <span class="reading-pct">${t.readingProgress}%</span>
+      `)).join('')}
+    ` : ''}
+
+    ${pending.length ? `
+      <div class="task-group-label">📋 Pendientes</div>
+      ${pending.map(t=>bookRow(t, `<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="startReading('${t.id}')">▶ Empezar a leer</button>`)).join('')}
+    ` : ''}
+
+    ${finished.length ? `
+      <div class="task-group-label">✅ Terminados</div>
+      ${finished.map(t=>bookRow(t, `<span style="font-size:11px;color:var(--text-muted);">${t.completedAt||''}</span>`)).join('')}
+    ` : ''}
+
+    ${books.length===0 ? '<div class="empty">Tu biblioteca está vacía. Agregá tu primer libro arriba 📚</div>' : ''}
+  `;
+}
+function startReading(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  t.readingProgress = 5;
+  saveState(); render();
+}
+function updateReadingProgress(id, value){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  t.readingProgress = parseInt(value);
+  if(t.readingProgress >= 100){
+    t.done = true; t.completedAt = todayISO(); t.completedAtTime = Date.now();
+    state.totalCompletedEver = (state.totalCompletedEver||0)+1;
+  }
+  saveState(); render();
+}
+function editReadingGoal(){
+  const current = (state.settings && state.settings.readingGoal) || 12;
+  const val = prompt('¿Cuántos libros querés leer este año?', current);
+  if(val === null) return;
+  const n = parseInt(val);
+  if(isNaN(n) || n<=0) return;
+  state.settings.readingGoal = n;
+  saveState(); render();
+}
+
 function renderKanban(container){
   const pending = state.tasks.filter(t=>!t.done);
   container.innerHTML = `<div class="kanban-grid">
@@ -3926,6 +4014,18 @@ function render(){
     upcoming: ()=>{ titleEl.innerText='Próximos'; subEl.innerText='Tareas con fecha, agrupadas por día'; addWrap.style.display='none'; renderUpcoming(body); }
   };
   if(specialViews[v.type]){ specialViews[v.type](); return; }
+
+  if(v.type==='list'){
+    const currentListForModule = state.lists.find(l=>l.id===v.id);
+    if(isReadingList(currentListForModule)){
+      titleEl.innerText = currentListForModule.name;
+      subEl.innerText = 'Tu biblioteca personal';
+      addWrap.style.display='block';
+      document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
+      renderReadingModule(v.id, body);
+      return;
+    }
+  }
 
   addWrap.style.display='block';
   document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
