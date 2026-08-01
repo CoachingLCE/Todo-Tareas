@@ -547,6 +547,7 @@
         </div>
         <div class="header-actions">
           <a class="hbtn" href="https://cafecito.app/ilce" target="_blank" rel="noopener" title="Invitar un cafecito" aria-label="Invitar un cafecito" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">☕</a>
+          <button class="hbtn" onclick="organizeMyDay()" title="Organizar mi día" aria-label="Organizar mi día">✨</button>
           <button class="hbtn" onclick="openHelp()" title="Cómo funciona" aria-label="Cómo funciona"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 1.8-2.2 3.3M12 17h.01"/></svg></button>
           <button class="hbtn" onclick="openSyncStatusPanel()" title="Sincronización" aria-label="Sincronización"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17.5 19H9a5 5 0 1 1 1.03-9.9A6 6 0 0 1 21 11.5 4.5 4.5 0 0 1 17.5 19Z"/></svg></button>
           
@@ -1905,7 +1906,6 @@ function openSettingsPanel(){
             <option value="large" ${s.fontSize==='large'?'selected':''}>Grande</option>
           </select>
         </div>
-        ${settingsToggleRow('Header compacto al hacer scroll <span style="color:var(--text-muted);font-size:11px;">(experimental)</span>', 'smartHeaderScroll', s.smartHeaderScroll, "updateSetting('smartHeaderScroll', this.checked)")}
         ${settingsToggleRow('Mostrar barra de progreso', 'showProgressBar', s.showProgressBar, "updateSetting('showProgressBar', this.checked)")}
         ${settingsToggleRow('Mostrar saludo', 'showGreeting', s.showGreeting, "updateSetting('showGreeting', this.checked)")}
         ${settingsToggleRow('Mostrar descripciones', 'showDescriptions', s.showDescriptions, "updateSetting('showDescriptions', this.checked)")}
@@ -3240,6 +3240,8 @@ function applyHeaderCompactClasses(){
   if(btn) btn.classList.toggle('compact', isHeaderCompact);
 }
 function onMainScrollForHeader(){
+  // Función desactivada por completo: causó parpadeos en la práctica en más de un intento.
+  return;
   if(!state.settings || !state.settings.smartHeaderScroll) return;
   if(headerScrollRaf) return;
   headerScrollRaf = true;
@@ -3304,16 +3306,8 @@ function renderListSummary(listId){
 }
 
 function renderOrganizeButton(){
-  const container = document.getElementById('organize-day-container');
-  const hideIn = ['list','kanban','calendar','stats','week','cleanup'];
-  if(hideIn.includes(state.currentView.type)){ container.innerHTML = ''; return; }
-  const t0 = todayISO();
-  const importantCount = state.tasks.filter(t=>!t.done && t.priority==='alta' && (t.dueDate===t0 || isOverdue(t))).length;
-  container.innerHTML = `
-    <div class="organize-cta-wrap ${isHeaderCompact?'compact':''}">
-      <button class="organize-btn-pill" onclick="organizeMyDay()">${icon('sparkles',15)} Organizar mi día</button>
-      ${importantCount>0 ? `<div class="organize-cta-sub">Te quedan ${importantCount} tarea${importantCount===1?'':'s'} importante${importantCount===1?'':'s'}</div>` : ''}
-    </div>`;
+  // El botón "Organizar mi día" ahora vive como ícono (✨) en la cabecera principal.
+  document.getElementById('organize-day-container').innerHTML = '';
 }
 
 /** Botón de IA: prioriza, reprograma vencidas, agrupa y detecta bloqueos entre las tareas de hoy. */
