@@ -317,6 +317,18 @@
   .search-box{background:var(--card);border-radius:var(--radius-lg);width:540px;max-width:92vw;max-height:70vh;overflow-y:auto;box-shadow:var(--shadow-lg);padding:18px;}
   .search-box input{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:14px;background:var(--bg);color:var(--text);margin-bottom:12px;}
   .search-result{padding:11px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;margin-bottom:2px;}
+  .search-result:hover, .search-result.selected{background:var(--bg);}
+  .search-command-row{display:flex;align-items:center;font-weight:500;}
+  .search-section-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;
+    padding:10px 12px 4px;display:flex;justify-content:space-between;align-items:center;}
+  .search-clear-recent{background:none;border:none;color:var(--accent-strong);font-size:11px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:600;}
+  .search-suggestions-grid{display:flex;flex-wrap:wrap;gap:8px;padding:6px 12px 10px;}
+  .search-suggestion-chip{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:7px 13px;font-size:12.5px;cursor:pointer;transition:background .12s,border-color .12s;}
+  .search-suggestion-chip:hover{background:var(--accent-bg);border-color:var(--accent);}
+  .search-input-row{display:flex;align-items:center;gap:8px;padding:2px 4px;}
+  .search-input-row input{flex:1;margin-bottom:0;}
+  .search-kbd-hint{font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;
+    padding:2px 7px;flex-shrink:0;font-weight:600;}
   .search-result:hover{background:var(--bg);}
   .search-result .r-title{font-weight:500;}
   .search-result .r-meta{font-size:11px;color:var(--text-muted);margin-top:2px;}
@@ -2327,17 +2339,91 @@ function getVisibleTasks(){
 /* =====================================================================
    BÚSQUEDA
    ===================================================================== */
+/** Paleta de comandos: acciones ejecutables directo desde el buscador. */
+const SEARCH_COMMANDS = [
+  { label:'Nueva tarea', icon:'➕', run:()=>{ selectView('today', null); setTimeout(()=>{ const el=document.getElementById('new-task-title'); if(el) el.focus(); }, 60); } },
+  { label:'Nueva lista', icon:'📂', run:()=>{ const el=document.getElementById('new-list-name'); if(el) el.focus(); } },
+  { label:'Organizar mi día', icon:'✨', run:()=> organizeMyDay() },
+  { label:'Abrir Agenda', icon:'📅', run:()=> selectView('agenda', null) },
+  { label:'Abrir Calendario', icon:'🗓️', run:()=> selectView('calendar', null) },
+  { label:'Abrir Estadísticas', icon:'📊', run:()=> selectView('stats', null) },
+  { label:'Abrir Kanban', icon:'🗂️', run:()=> selectView('kanban', null) },
+  { label:'Abrir Limpieza', icon:'🧹', run:()=> selectView('cleanup', null) },
+  { label:'Abrir Favoritos', icon:'⭐', run:()=> selectView('favorites', null) },
+  { label:'Abrir Configuración', icon:'⚙️', run:()=> openSettingsPanel() },
+  { label:'Iniciar Pomodoro', icon:'🍅', run:()=> togglePomodoroPanel() },
+  { label:'Exportar tareas', icon:'⬇️', run:()=> exportTasksJSON() },
+  { label:'Importar tareas', icon:'⬆️', run:()=> openImport() },
+  { label:'Crear copia de seguridad', icon:'💾', run:()=> exportTasksJSON() },
+  { label:'Ver sincronización', icon:'☁️', run:()=> openSyncStatusPanel() }
+];
+/** Accesos rápidos mostrados cuando el buscador está vacío. */
+const SEARCH_SUGGESTION_SHORTCUTS = [
+  { label:'Hoy', icon:'☀️', run:()=> selectView('today', null) },
+  { label:'Importantes', icon:'⭐', run:()=> selectView('important', null) },
+  { label:'Leer', icon:'📚', listKey:'leer' },
+  { label:'Películas', icon:'🎬', listKey:'pelicula' },
+  { label:'Series', icon:'📺', listKey:'serie' },
+  { label:'Podcasts', icon:'🎧', listKey:'podcast' },
+  { label:'Videos', icon:'▶️', listKey:'video' },
+  { label:'Turnos Médicos', icon:'🏥', listKey:'turnos medicos' },
+  { label:'Estadísticas', icon:'📊', run:()=> selectView('stats', null) },
+  { label:'Pomodoro', icon:'🍅', run:()=> togglePomodoroPanel() }
+];
+let searchSelectedIndex = -1;
+let searchCurrentItems = [];
+
+function getRecentSearches(){
+  try{ return JSON.parse(localStorage.getItem('todo-app-recent-searches')) || []; }catch(e){ return []; }
+}
+function saveRecentSearch(q){
+  if(!q || q.trim().length<2) return;
+  let list = getRecentSearches().filter(s=>s!==q);
+  list.unshift(q);
+  try{ localStorage.setItem('todo-app-recent-searches', JSON.stringify(list.slice(0,6))); }catch(e){}
+}
+function clearRecentSearches(){
+  try{ localStorage.removeItem('todo-app-recent-searches'); }catch(e){}
+  runSearch();
+}
+function runRecentSearch(q){
+  const input = document.getElementById('search-input');
+  input.value = q; input.focus();
+  runSearch();
+}
+function runSuggestionShortcut(i){
+  const s = SEARCH_SUGGESTION_SHORTCUTS[i];
+  if(!s) return;
+  closeSearchOverlay();
+  if(s.run) s.run();
+  else if(s.listKey){
+    const l = state.lists.find(l=>normalize(l.name).includes(s.listKey));
+    if(l) selectView('list', l.id);
+  }
+}
+
 function openSearch(){
   document.getElementById('search-container').innerHTML = `
     <div class="search-overlay" onclick="closeSearchOverlay(event)">
       <div class="search-box" onclick="event.stopPropagation()">
-        <input type="text" id="search-input" placeholder="Buscar por título, etiqueta, lista o fecha (aaaa-mm-dd)" oninput="runSearch()">
+        <div class="search-input-row">
+          <input type="text" id="search-input" placeholder="Buscar tareas, listas o comandos..." oninput="runSearch()" onkeydown="onSearchKeyDown(event)">
+          <span class="search-kbd-hint">${navigator.platform.includes('Mac')?'⌘K':'Ctrl K'}</span>
+        </div>
         <div id="search-results"></div>
       </div>
     </div>`;
+  runSearch();
   setTimeout(()=>{ const el = document.getElementById('search-input'); if(el) el.focus(); }, 30);
 }
 function closeSearchOverlay(evt){ if(evt) evt.stopPropagation(); document.getElementById('search-container').innerHTML=''; }
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k'){
+    e.preventDefault();
+    if(document.getElementById('search-container').innerHTML.trim()) closeSearchOverlay();
+    else openSearch();
+  }
+});
 /** Formatea un timestamp como "hoy", "ayer" o "hace N días/meses", para los resultados de búsqueda. */
 function formatRelativeTime(ts){
   if(!ts) return null;
@@ -2351,20 +2437,85 @@ function formatRelativeTime(ts){
   return `hace ${months} mes${months===1?'':'es'}`;
 }
 
+function renderSearchEmptyState(results){
+  const recent = getRecentSearches();
+  let html = '';
+  if(recent.length){
+    html += `<div class="search-section-label">Búsquedas recientes <button class="search-clear-recent" onclick="clearRecentSearches()">Borrar</button></div>`;
+    html += recent.map(q=>`<div class="search-result" onclick="runRecentSearch('${escapeHtml(q).replace(/'/g,"\\'")}')">🕐 ${escapeHtml(q)}</div>`).join('');
+  }
+  html += `<div class="search-section-label">Accesos rápidos</div>`;
+  html += `<div class="search-suggestions-grid">${SEARCH_SUGGESTION_SHORTCUTS.map((s,i)=>`<div class="search-suggestion-chip" onclick="runSuggestionShortcut(${i})">${s.icon} ${s.label}</div>`).join('')}</div>`;
+  results.innerHTML = html;
+  searchCurrentItems = [];
+  searchSelectedIndex = -1;
+}
+
 function runSearch(){
-  const q = normalize(document.getElementById('search-input').value.trim());
+  const inputEl = document.getElementById('search-input');
+  if(!inputEl) return;
+  const qRaw = inputEl.value.trim();
+  const q = normalize(qRaw);
   const results = document.getElementById('search-results');
-  if(!q){ results.innerHTML=''; return; }
-  const matches = state.tasks.filter(t=>{
+  searchSelectedIndex = -1;
+  if(!q){ renderSearchEmptyState(results); return; }
+
+  const matchedCommands = SEARCH_COMMANDS.filter(c=>normalize(c.label).includes(q));
+  const matchedTasks = state.tasks.filter(t=>{
     const list = state.lists.find(l=>l.id===t.listId);
     return normalize(t.title).includes(q)
       || t.tags.some(tag=>normalize(tag).includes(q))
       || (list && normalize(list.name).includes(q))
       || (t.dueDate && t.dueDate.includes(q))
       || normalize(t.notes||'').includes(q);
-  }).slice(0,30);
-  if(matches.length===0){ results.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
-  results.innerHTML = matches.map(t=>renderSearchResult(t, q)).join('');
+  }).slice(0,25);
+
+  searchCurrentItems = [
+    ...matchedCommands.map(c=>({type:'command', data:c})),
+    ...matchedTasks.map(t=>({type:'task', data:t}))
+  ];
+
+  if(searchCurrentItems.length===0){ results.innerHTML = '<div class="empty">Sin resultados.</div>'; return; }
+
+  let html = '';
+  if(matchedCommands.length){
+    html += `<div class="search-section-label">Comandos</div>`;
+    html += matchedCommands.map((c,i)=>`<div class="search-result search-command-row" data-idx="${i}" onclick="activateSearchItem(${i})"><span style="margin-right:8px;">${c.icon}</span><span>${escapeHtml(c.label)}</span></div>`).join('');
+  }
+  if(matchedTasks.length){
+    html += `<div class="search-section-label">Resultados</div>`;
+    html += matchedTasks.map((t,i)=>renderSearchResult(t, q, matchedCommands.length+i)).join('');
+  }
+  results.innerHTML = html;
+}
+
+function onSearchKeyDown(e){
+  if(e.key === 'Escape'){ closeSearchOverlay(); return; }
+  if(searchCurrentItems.length===0) return;
+  if(e.key === 'ArrowDown' || (e.key==='Tab' && !e.shiftKey)){
+    e.preventDefault();
+    searchSelectedIndex = Math.min(searchSelectedIndex+1, searchCurrentItems.length-1);
+    highlightSearchSelection();
+  } else if(e.key === 'ArrowUp' || (e.key==='Tab' && e.shiftKey)){
+    e.preventDefault();
+    searchSelectedIndex = Math.max(searchSelectedIndex-1, 0);
+    highlightSearchSelection();
+  } else if(e.key === 'Enter'){
+    e.preventDefault();
+    activateSearchItem(searchSelectedIndex>=0 ? searchSelectedIndex : 0);
+  }
+}
+function highlightSearchSelection(){
+  document.querySelectorAll('#search-results [data-idx]').forEach(r=>r.classList.remove('selected'));
+  const el = document.querySelector(`#search-results [data-idx="${searchSelectedIndex}"]`);
+  if(el){ el.classList.add('selected'); if(el.scrollIntoView) el.scrollIntoView({block:'nearest'}); }
+}
+function activateSearchItem(idx){
+  const item = searchCurrentItems[idx];
+  if(!item) return;
+  saveRecentSearch(document.getElementById('search-input').value.trim());
+  if(item.type==='command'){ closeSearchOverlay(); item.data.run(); }
+  else { goToTaskFromSearch(item.data.id); }
 }
 
 /** Resalta las coincidencias del texto buscado dentro de un título. */
@@ -2377,7 +2528,7 @@ function highlightMatch(text, q){
 }
 
 /** Arma un resultado de búsqueda con toda la información contextual (lista, prioridad, fechas, estado, etc). */
-function renderSearchResult(t, q){
+function renderSearchResult(t, q, idx){
   const list = state.lists.find(l=>l.id===t.listId);
   const bits = [];
   if(list) bits.push(`📂 ${escapeHtml(list.name)}`);
@@ -2398,7 +2549,7 @@ function renderSearchResult(t, q){
   if(t.recurrence) bits.push(`🔁 Se repite`);
   if(t.youtubeUrl) bits.push(`🎥 Video de YouTube`);
 
-  return `<div class="search-result" onclick="goToTaskFromSearch('${t.id}')">
+  return `<div class="search-result" data-idx="${idx}" onclick="activateSearchItem(${idx})">
     <div class="r-title">📋 ${highlightMatch(t.youtubeTitle || t.spotifyTitle || t.title, q)}</div>
     <div class="r-meta-rich">${bits.map(b=>`<span>${b}</span>`).join('')}</div>
   </div>`;
