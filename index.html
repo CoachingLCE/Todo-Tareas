@@ -119,6 +119,16 @@
   .day-progress-card.compact .dpc-hero{gap:20px;margin-bottom:0;}
   .day-progress-card.compact .dpc-hero-item .num{font-size:17px;}
   .day-progress-card.compact .dpc-hero-item .label{font-size:9.5px;}
+  .organize-cta-wrap{text-align:center;margin:16px 0;transition:margin .2s var(--ease);}
+  .organize-btn-pill{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));
+    color:#fff;border:none;border-radius:999px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;
+    box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s,padding .2s var(--ease),font-size .2s var(--ease);}
+  .organize-btn-pill:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+  .organize-btn-pill:active{transform:translateY(0);}
+  .organize-cta-sub{font-size:11.5px;color:var(--text-muted);margin-top:6px;transition:opacity .2s,max-height .2s;}
+  .organize-cta-wrap.compact{margin:8px 0;}
+  .organize-cta-wrap.compact .organize-btn-pill{padding:6px 14px;font-size:11.5px;}
+  .organize-cta-wrap.compact .organize-cta-sub{opacity:0;max-height:0;overflow:hidden;margin:0;}
   .organize-btn{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:none;
     border-radius:var(--radius-lg);padding:15px 20px;font-size:14.5px;font-weight:600;cursor:pointer;display:flex;
     align-items:center;gap:10px;justify-content:center;margin:14px 0;box-shadow:var(--shadow-md);
@@ -3257,8 +3267,13 @@ function renderOrganizeButton(){
   const container = document.getElementById('organize-day-container');
   const hideIn = ['list','kanban','calendar','stats','week','cleanup'];
   if(hideIn.includes(state.currentView.type)){ container.innerHTML = ''; return; }
+  const t0 = todayISO();
+  const importantCount = state.tasks.filter(t=>!t.done && t.priority==='alta' && (t.dueDate===t0 || isOverdue(t))).length;
   container.innerHTML = `
-    <button class="organize-btn ${isHeaderCompact?'compact':''}" onclick="organizeMyDay()">${icon('sparkles',18)} Organizar mi día</button>`;
+    <div class="organize-cta-wrap ${isHeaderCompact?'compact':''}">
+      <button class="organize-btn-pill" onclick="organizeMyDay()">${icon('sparkles',15)} Organizar mi día</button>
+      ${importantCount>0 ? `<div class="organize-cta-sub">Te quedan ${importantCount} tarea${importantCount===1?'':'s'} importante${importantCount===1?'':'s'}</div>` : ''}
+    </div>`;
 }
 
 /** Botón de IA: prioriza, reprograma vencidas, agrupa y detecta bloqueos entre las tareas de hoy. */
@@ -3855,6 +3870,30 @@ function renderUpcoming(container){
 /* =====================================================================
    RENDER PRINCIPAL
    ===================================================================== */
+/** Vocabulario contextual: "Agregar tarea" cambia según el tipo de lista (libro, turno, producto, etc). */
+const ADD_LABEL_BY_LIST_KEYWORD = [
+  { key:'leer', label:"Agregar un libro..." },
+  { key:'pelicula', label:"Agregar una película..." },
+  { key:'serie', label:"Agregar una serie..." },
+  { key:'podcast', label:"Agregar un podcast..." },
+  { key:'video', label:"Agregar un video..." },
+  { key:'turnos medicos', label:"Agregar un turno médico..." },
+  { key:'compras', label:"Agregar un producto..." },
+  { key:'agenda', label:"Agregar un evento..." }
+];
+function getAddPlaceholder(v){
+  if(v.type==='agenda') return "Agregar un evento...";
+  if(v.type==='list'){
+    const list = state.lists.find(l=>l.id===v.id);
+    if(list){
+      const norm = normalize(list.name);
+      const match = ADD_LABEL_BY_LIST_KEYWORD.find(item=>norm.includes(item.key));
+      if(match) return match.label;
+    }
+  }
+  return "Agregar una tarea (probá escribir 'mañana' o 'urgente')";
+}
+
 function render(){
   renderAccountIndicator();
   renderSidebar();
@@ -3889,6 +3928,7 @@ function render(){
   if(specialViews[v.type]){ specialViews[v.type](); return; }
 
   addWrap.style.display='block';
+  document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
   if(v.type==='today'){ titleEl.innerText='Mi día'; subEl.innerText='Tareas de hoy y vencidas'; }
   else if(v.type==='important'){ titleEl.innerText='Importantes'; subEl.innerText='Tareas con prioridad alta'; }
   else if(v.type==='favorites'){ titleEl.innerText='Favoritos'; subEl.innerText='Tareas que fijaste arriba de todo'; }
