@@ -909,6 +909,7 @@ function migrateState(){
     if(!t.updatedAt) t.updatedAt = t.createdAt || Date.now();
     if(t.dueTime === undefined) t.dueTime = null;
     if(typeof t.readingProgress !== 'number') t.readingProgress = 0;
+    if(t.currentEpisodeInfo === undefined) t.currentEpisodeInfo = null;
     if(typeof t.favorite !== 'boolean') t.favorite = false;
     if(t.youtubeUrl === undefined) t.youtubeUrl = null;
     if(t.youtubeTitle === undefined) t.youtubeTitle = null;
@@ -3113,7 +3114,7 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 function renderDayProgress(){
   if(state.currentView.type === 'list'){
     const currentListForSummary = state.lists.find(l=>l.id===state.currentView.id);
-    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary) || isMovieList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
+    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary) || isMovieList(currentListForSummary) || isSeriesList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
     renderListSummary(state.currentView.id); return;
   }
   const t0 = todayISO();
@@ -3907,6 +3908,68 @@ function renderMovieModule(listId, container){
   `;
 }
 
+/* =====================================================================
+   MÓDULO "SERIES" — en curso (con próximo episodio), pendientes, terminadas
+   ===================================================================== */
+function isSeriesList(list){ return list && normalize(list.name).includes('serie'); }
+function renderSeriesModule(listId, container){
+  const shows = state.tasks.filter(t=>t.listId===listId);
+  const inProgress = shows.filter(t=>!t.done && t.currentEpisodeInfo);
+  const pending = shows.filter(t=>!t.done && !t.currentEpisodeInfo);
+  const finished = shows.filter(t=>t.done);
+
+  const showRow = (t, extra) => `
+    <div class="reading-row" data-task-id="${t.id}">
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</span>
+      ${extra}
+      <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="stats-hero" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stats-hero-card"><div class="hero-num">${inProgress.length}</div><div class="hero-label">en curso</div></div>
+      <div class="stats-hero-card"><div class="hero-num">${finished.length}</div><div class="hero-label">terminadas</div></div>
+    </div>
+    ${inProgress.length ? `
+      <div class="task-group-label">📺 En curso</div>
+      ${inProgress.map(t=>showRow(t, `<span class="reading-pct" style="cursor:pointer;" onclick="editCurrentEpisode('${t.id}')" title="Actualizar episodio">${escapeHtml(t.currentEpisodeInfo)} ✎</span>`)).join('')}
+    ` : ''}
+    ${pending.length ? `
+      <div class="task-group-label">📋 Pendientes</div>
+      ${pending.map(t=>showRow(t, `<button class="btn" style="font-size:11px;padding:5px 10px;" onclick="startWatchingSeries('${t.id}')">▶ Empezar</button>`)).join('')}
+    ` : ''}
+    ${finished.length ? `
+      <div class="task-group-label">✅ Terminadas</div>
+      ${finished.map(t=>showRow(t, `<span style="font-size:11px;color:var(--text-muted);">${t.completedAt||''}</span>`)).join('')}
+    ` : ''}
+    ${shows.length===0 ? '<div class="empty">No hay series todavía. Agregá la primera arriba 📺</div>' : ''}
+  `;
+}
+function startWatchingSeries(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  const val = prompt('¿En qué episodio vas? (ej: S1E1)', 'S1E1');
+  if(val === null || !val.trim()) return;
+  t.currentEpisodeInfo = val.trim();
+  saveState(); render();
+}
+function editCurrentEpisode(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  const val = prompt('¿En qué episodio vas ahora? (dejalo vacío si terminaste la serie)', t.currentEpisodeInfo || '');
+  if(val === null) return;
+  if(!val.trim()){
+    if(confirm('¿Marcar esta serie como terminada?')){
+      t.done = true; t.completedAt = todayISO(); t.completedAtTime = Date.now();
+      t.currentEpisodeInfo = null;
+      state.totalCompletedEver = (state.totalCompletedEver||0)+1;
+    }
+  } else {
+    t.currentEpisodeInfo = val.trim();
+  }
+  saveState(); render();
+}
+
 function renderReadingModule(listId, container){
   const list = state.lists.find(l=>l.id===listId);
   const books = state.tasks.filter(t=>t.listId===listId);
@@ -4129,6 +4192,14 @@ function render(){
       addWrap.style.display='block';
       document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
       renderMovieModule(v.id, body);
+      return;
+    }
+    if(isSeriesList(currentListForModule)){
+      titleEl.innerText = currentListForModule.name;
+      subEl.innerText = 'Tus series';
+      addWrap.style.display='block';
+      document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
+      renderSeriesModule(v.id, body);
       return;
     }
   }
