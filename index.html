@@ -916,6 +916,10 @@ function migrateState(){
     if(t.youtubeTitle === undefined) t.youtubeTitle = null;
     if(t.youtubeThumbnail === undefined) t.youtubeThumbnail = null;
     if(t.youtubeAuthor === undefined) t.youtubeAuthor = null;
+    if(t.spotifyUrl === undefined) t.spotifyUrl = null;
+    if(t.spotifyTitle === undefined) t.spotifyTitle = null;
+    if(t.spotifyThumbnail === undefined) t.spotifyThumbnail = null;
+    if(t.spotifyProvider === undefined) t.spotifyProvider = null;
     if(!t.reminders){
       t.reminders = (t.reminderDaysBefore !== null && t.reminderDaysBefore !== undefined) ? [t.reminderDaysBefore] : [];
     }
@@ -1564,6 +1568,25 @@ async function fetchYouTubeMetadata(taskId, url){
   }catch(e){ console.error('No se pudo obtener la miniatura de YouTube', e); }
 }
 
+/** Detecta un link de Spotify (podcast/episodio/show) para armar una tarjeta con portada real. */
+function extractSpotifyUrl(text){
+  const m = text.match(/(https?:\/\/open\.spotify\.com\/(?:episode|show)\/[\w?=&%.-]+)/i);
+  return m ? m[0] : null;
+}
+async function fetchSpotifyMetadata(taskId, url){
+  try{
+    const resp = await fetch('https://open.spotify.com/oembed?url='+encodeURIComponent(url));
+    if(!resp.ok) throw new Error('oEmbed de Spotify falló');
+    const data = await resp.json();
+    const t = state.tasks.find(t=>t.id===taskId);
+    if(!t) return;
+    t.spotifyTitle = data.title || null;
+    t.spotifyThumbnail = data.thumbnail_url || null;
+    t.spotifyProvider = data.provider_name || 'Spotify';
+    saveState(); render();
+  }catch(e){ console.error('No se pudo obtener la portada de Spotify', e); }
+}
+
 function addTask(){
   const input = document.getElementById('new-task-title');
   const raw = input.value.trim();
@@ -1588,10 +1611,12 @@ function addTask(){
     createdAt: Date.now(), completedAt: null, order: maxOrder+1,
     recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null,
     youtubeUrl: extractYouTubeUrl(raw), youtubeTitle: null, youtubeThumbnail: null, youtubeAuthor: null, favorite: false,
+    spotifyUrl: extractSpotifyUrl(raw), spotifyTitle: null, spotifyThumbnail: null, spotifyProvider: null,
     dueTime: parsed.time || null
   };
   state.tasks.push(newTask);
   if(newTask.youtubeUrl) fetchYouTubeMetadata(newTask.id, newTask.youtubeUrl);
+  if(newTask.spotifyUrl) fetchSpotifyMetadata(newTask.id, newTask.spotifyUrl);
   haptic(15);
   justAddedTaskId = newTask.id;
 
@@ -3425,6 +3450,19 @@ function renderYoutubeCard(t){
     </div>`;
 }
 
+/** Tarjeta multimedia para links de Spotify (podcast/episodio), con portada real vía oEmbed. */
+function renderSpotifyCard(t){
+  const thumb = t.spotifyThumbnail;
+  return `
+    <div class="youtube-card" onclick="event.stopPropagation()">
+      ${thumb ? `<img src="${thumb}" alt="" class="youtube-thumb" style="aspect-ratio:1/1;max-width:140px;">` : `<div class="youtube-thumb youtube-thumb-loading" style="aspect-ratio:1/1;max-width:140px;">🎧</div>`}
+      <div class="youtube-card-meta">
+        <span class="tag">🎧 ${escapeHtml(t.spotifyProvider || 'Spotify')}</span>
+      </div>
+      <a href="${t.spotifyUrl}" target="_blank" rel="noopener noreferrer" class="youtube-watch-btn">▶ Escuchar en Spotify</a>
+    </div>`;
+}
+
 function renderTaskCard(t){
   const list = state.lists.find(l=>l.id===t.listId);
   const autoExpand = state.settings.autoExpandNotes && t.notes && expanded[t.id]===undefined;
@@ -3448,7 +3486,8 @@ function renderTaskCard(t){
       <div class="checkbox ${t.done?'checked':''}" onclick="handleCompleteClick('${t.id}', event)">${t.done?'✓':''}</div>
       <div class="task-body">
         ${t.youtubeUrl ? renderYoutubeCard(t) : ''}
-        <div class="task-title" onclick="openEditModal('${t.id}')">${t.favorite?'⭐ ':''}${escapeHtml(t.youtubeTitle || t.title)}</div>
+        ${t.spotifyUrl ? renderSpotifyCard(t) : ''}
+        <div class="task-title" onclick="openEditModal('${t.id}')">${t.favorite?'⭐ ':''}${escapeHtml(t.youtubeTitle || t.spotifyTitle || t.title)}</div>
         ${t.done && formatCompletedWhen(t) ? `<div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">✓ ${formatCompletedWhen(t)}</div>` : ''}
         <div class="task-meta">
           ${t.priority ? `<span class="badge ${t.priority==='alta'?'high':t.priority==='media'?'med':'low'}" onclick="cyclePriority('${t.id}')" style="cursor:pointer">${priorityIcon(t.priority)} ${priorityLabel(t.priority)}</span>` : ''}
@@ -3859,7 +3898,7 @@ function renderPodcastModule(listId, container){
 
   const episodeRow = (t, extra) => `
     <div class="reading-row" data-task-id="${t.id}">
-      <span class="reading-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</span>
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${t.spotifyThumbnail ? `<img src="${t.spotifyThumbnail}" alt="" style="width:20px;height:20px;border-radius:4px;vertical-align:-5px;margin-right:6px;">` : ''}${escapeHtml(t.spotifyTitle || t.title)}</span>
       ${extra}
       <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
     </div>`;
