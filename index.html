@@ -1011,26 +1011,28 @@ function getSyncLog(){
 async function saveState(){
   state.lastSavedAt = Date.now();
   const payload = JSON.stringify(state);
+  // Respaldo local INMEDIATO (síncrono, antes de esperar la red): así, si el usuario
+  // recarga la página justo mientras el guardado en la nube todavía está en camino,
+  // loadState() encuentra esta copia más nueva y no muestra una versión vieja.
+  try{ localStorage.setItem(STORAGE_KEY + '-backup', payload); }catch(e){}
   try{
     await storageSet(STORAGE_KEY, payload);
     logSyncEvent(true, 'Guardado OK');
+    try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){} // confirmado en la nube, ya no hace falta
   }catch(e){
     console.error('Error guardando (intento 1)', e);
     try{
       // Reintento simple por si fue un error transitorio del servidor
       await storageSet(STORAGE_KEY, payload);
       logSyncEvent(true, 'Guardado OK (reintento)');
+      try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
     }catch(e2){
       console.error('Error guardando (intento 2, uso respaldo local)', e2);
-      try{
-        // Respaldo: guardamos localmente para no perder los cambios de esta sesión
-        localStorage.setItem(STORAGE_KEY + '-backup', payload);
-        logSyncEvent(false, 'Falló el guardado en el servidor — respaldado localmente');
-        if(!saveFailureNotified){
-          saveFailureNotified = true;
-          showToast('El guardado en el servidor falló momentáneamente. Tus cambios quedaron respaldados en este navegador.');
-        }
-      }catch(e3){ console.error('Respaldo local también falló', e3); logSyncEvent(false, 'Falló también el respaldo local'); }
+      logSyncEvent(false, 'Falló el guardado en el servidor — respaldado localmente');
+      if(!saveFailureNotified){
+        saveFailureNotified = true;
+        showToast('El guardado en el servidor falló momentáneamente. Tus cambios quedaron respaldados en este navegador.');
+      }
     }
   }
 }
