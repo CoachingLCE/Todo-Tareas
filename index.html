@@ -378,30 +378,49 @@
   .pomodoro-actions{display:flex;gap:6px;justify-content:center;}
 
   /* ---------- Login ---------- */
-  .login-overlay{position:fixed;inset:0;background:rgba(255,255,255,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    display:flex;align-items:center;justify-content:center;z-index:999;}
-  [data-theme="dark"] .login-overlay{background:rgba(10,10,14,.55);}
-  .login-box{background:var(--card);border-radius:var(--radius-lg);padding:36px 32px;width:360px;max-width:90vw;
-    box-shadow:var(--shadow-lg);animation:loginIn .25s var(--ease);}
-  @keyframes loginIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-  .login-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));
-    color:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:18px;box-shadow:var(--shadow-md);}
-  .login-title{font-size:30px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;}
-  .login-subtitle{font-size:15px;color:var(--text-muted);margin-bottom:28px;}
-  .login-label{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em;}
-  .login-input{width:100%;height:50px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0 14px;
+  .login-overlay{position:fixed;inset:0;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(120,130,255,.14) 1px, transparent 0) 0 0/22px 22px,
+      linear-gradient(160deg, var(--bg) 0%, var(--card) 100%);
+    display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;}
+  [data-theme="dark"] .login-overlay{
+    background:
+      radial-gradient(circle at 1px 1px, rgba(120,130,255,.10) 1px, transparent 0) 0 0/22px 22px,
+      linear-gradient(160deg, var(--bg) 0%, #16161c 100%);}
+  .login-box{background:var(--card);border:1px solid #e5e7eb;border-radius:20px;padding:44px 36px;width:400px;max-width:100%;
+    box-shadow:0 20px 50px -12px rgba(0,0,0,.18), 0 4px 14px -4px rgba(0,0,0,.08);animation:loginIn .3s var(--ease);}
+  [data-theme="dark"] .login-box{border-color:var(--border);}
+  @keyframes loginIn{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+  .login-logo{width:60px;height:60px;border-radius:16px;
+    background:linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 60%, #2b4fd6 100%);
+    color:#fff;display:flex;align-items:center;justify-content:center;margin-bottom:26px;
+    box-shadow:0 8px 20px -6px rgba(59,107,240,.5);}
+  .login-title{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;}
+  .login-subtitle{font-size:15px;color:var(--text-muted);margin-bottom:32px;line-height:1.4;}
+  .login-label{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.03em;}
+  .login-input-wrap{position:relative;margin-bottom:4px;}
+  .login-input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);display:flex;pointer-events:none;}
+  .login-input{width:100%;height:52px;border:1px solid var(--border);border-radius:12px;padding:0 40px;
     font-size:16px;background:var(--bg);color:var(--text);transition:border-color .15s,box-shadow .15s;}
-  .login-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
+  .login-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-bg);}
   .login-input.invalid{border-color:var(--high);}
+  .login-input-check{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:15px;color:var(--success);
+    opacity:0;transition:opacity .15s;}
+  .login-input-check.valid{opacity:1;}
   .login-error{font-size:12.5px;color:var(--high);margin-top:8px;min-height:16px;}
-  .login-btn{width:100%;height:50px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);
-    font-size:16px;font-weight:600;margin-top:20px;cursor:pointer;box-shadow:var(--shadow-sm);
+  .login-btn{width:100%;height:52px;background:var(--accent);color:#fff;border:none;border-radius:12px;
+    font-size:16px;font-weight:600;margin-top:24px;cursor:pointer;box-shadow:0 4px 14px -4px rgba(59,107,240,.4);
     transition:background .15s,transform .1s,box-shadow .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
-  .login-btn:hover{background:var(--accent-strong);box-shadow:var(--shadow-md);}
-  .login-btn:active{transform:scale(.98);}
-  .login-btn:disabled{opacity:.75;cursor:default;}
+  .login-btn:hover{background:var(--accent-strong);box-shadow:0 6px 18px -4px rgba(59,107,240,.5);transform:translateY(-1px);}
+  .login-btn:active{transform:translateY(0) scale(.98);}
+  .login-btn:disabled{opacity:.75;cursor:default;transform:none;}
   .login-spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  .login-trust{text-align:center;font-size:12px;color:var(--text-muted);margin-top:18px;}
+  @media (max-width: 480px){
+    .login-box{width:calc(100% - 32px);padding:32px 24px;border-radius:18px;}
+    .login-title{font-size:24px;}
+  }
   /* ---------- Mobile ---------- */
   .mobile-menu-btn{display:none;}
   .sidebar-backdrop{display:none;}
@@ -635,6 +654,7 @@ const ICONS = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
   moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>',
   cloud: '<path d="M17.5 19H9a5 5 0 1 1 1.03-9.9A6 6 0 0 1 21 11.5 4.5 4.5 0 0 1 17.5 19Z"/>',
+  mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
   star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
@@ -704,15 +724,20 @@ function showLoginGate(){
   document.getElementById('login-gate-container').innerHTML = `
     <div class="login-overlay">
       <div class="login-box">
-        <div class="login-logo">${icon('checkSquare',26)}</div>
-        <div class="login-title">Bienvenido</div>
-        <div class="login-subtitle">Ingresá tu correo electrónico</div>
+        <div class="login-logo">${icon('checkSquare',28)}</div>
+        <div class="login-title">Bienvenido 👋</div>
+        <div class="login-subtitle">Organizá tu día desde un solo lugar.</div>
         <label class="login-label" for="login-email-input">Correo electrónico</label>
-        <input type="email" id="login-email-input" class="login-input" placeholder="tu@mail.com"
-          autocomplete="email" inputmode="email"
-          oninput="onLoginEmailInput()" onkeydown="if(event.key==='Enter')submitLogin()">
+        <div class="login-input-wrap">
+          <span class="login-input-icon">${icon('mail',17)}</span>
+          <input type="email" id="login-email-input" class="login-input" placeholder="nombre@empresa.com"
+            autocomplete="email" inputmode="email"
+            oninput="onLoginEmailInput()" onkeydown="if(event.key==='Enter')submitLogin()">
+          <span class="login-input-check" id="login-input-check"></span>
+        </div>
         <div id="login-error" class="login-error"></div>
-        <button class="login-btn" id="login-submit-btn" onclick="submitLogin()">Continuar</button>
+        <button class="login-btn" id="login-submit-btn" onclick="submitLogin()">Continuar →</button>
+        <div class="login-trust">🔒 Acceso seguro</div>
       </div>
     </div>`;
   setTimeout(()=>{ const el = document.getElementById('login-email-input'); if(el) el.focus(); }, 30);
@@ -721,9 +746,11 @@ function isValidEmail(email){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function onLoginEmailInput(){
   const input = document.getElementById('login-email-input');
   const errEl = document.getElementById('login-error');
+  const checkEl = document.getElementById('login-input-check');
   const val = input.value.trim();
-  if(val.length === 0 || isValidEmail(val)){ input.classList.remove('invalid'); errEl.innerText = ''; }
-  else { input.classList.add('invalid'); errEl.innerText = 'Ingresá un mail válido.'; }
+  if(val.length === 0){ input.classList.remove('invalid'); errEl.innerText = ''; checkEl.innerHTML = ''; }
+  else if(isValidEmail(val)){ input.classList.remove('invalid'); errEl.innerText = ''; checkEl.innerHTML = '✓'; checkEl.classList.add('valid'); }
+  else { input.classList.add('invalid'); errEl.innerText = 'Ingresá un mail válido.'; checkEl.innerHTML = ''; checkEl.classList.remove('valid'); }
 }
 async function submitLogin(){
   const input = document.getElementById('login-email-input');
