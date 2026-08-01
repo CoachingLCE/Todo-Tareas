@@ -1470,7 +1470,8 @@ function onTitleInput(){
   if(result.dateLabel && !manualDateOverride) chips += `<span class="smart-chip">📅 ${result.dateLabel}</span>`;
   if(result.timeLabel) chips += `<span class="smart-chip">🕐 ${result.timeLabel}</span>`;
   if(result.prioLabel && !manualPrioOverride) chips += `<span class="smart-chip">🎯 prioridad ${result.prioLabel}</span>`;
-  const listRule = detectSmartListOverride(input.value);
+  const inSpecificListPreview = state.currentView.type === 'list' && !!state.currentView.id;
+  const listRule = inSpecificListPreview ? null : detectSmartListOverride(input.value);
   if(listRule) chips += `<span class="smart-chip">📂 va a "${escapeHtml(listRule.listName)}"</span>`;
   let html = chips ? `<div class="smart-chips">${chips}</div>` : '';
   const similar = findSimilarTask(result.clean || input.value);
@@ -1537,10 +1538,11 @@ function addTask(){
   const input = document.getElementById('new-task-title');
   const raw = input.value.trim();
   if(!raw) return;
-  const listRule = detectSmartListOverride(raw);
+  const inSpecificList = state.currentView.type === 'list' && !!state.currentView.id;
+  const listRule = inSpecificList ? null : detectSmartListOverride(raw);
   const targetListId = listRule
     ? getOrCreateListByName(listRule.listName, listRule.color).id
-    : (state.currentView.type === 'list' && state.currentView.id) ? state.currentView.id : getOrCreatePersonalListId();
+    : inSpecificList ? state.currentView.id : getOrCreatePersonalListId();
   const parsed = detectSmartChips(raw);
   const manualDate = document.getElementById('new-task-date').value;
   const finalDate = manualDateOverride ? (manualDate || null) : (parsed.date || manualDate || todayISO());
@@ -3111,7 +3113,7 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 function renderDayProgress(){
   if(state.currentView.type === 'list'){
     const currentListForSummary = state.lists.find(l=>l.id===state.currentView.id);
-    if(isReadingList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
+    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
     renderListSummary(state.currentView.id); return;
   }
   const t0 = todayISO();
@@ -3817,6 +3819,56 @@ function resolveCleanupReminders(){
    ===================================================================== */
 function isReadingList(list){ return list && normalize(list.name).includes('leer'); }
 
+/* =====================================================================
+   MÓDULO "PODCASTS" — pendientes, escuchados este mes, tiempo total
+   ===================================================================== */
+function isPodcastList(list){ return list && normalize(list.name).includes('podcast'); }
+function renderPodcastModule(listId, container){
+  const episodes = state.tasks.filter(t=>t.listId===listId);
+  const pending = episodes.filter(t=>!t.done);
+  const thisMonth = toISO(new Date()).slice(0,7);
+  const listenedThisMonth = episodes.filter(t=>t.done && t.completedAt && t.completedAt.slice(0,7)===thisMonth);
+  const recentlyListened = episodes.filter(t=>t.done).sort((a,b)=>(b.completedAtTime||0)-(a.completedAtTime||0)).slice(0,6);
+  const totalMinutes = listenedThisMonth.reduce((s,t)=>s+(t.estimatedMinutes||0),0);
+  const hh = Math.floor(totalMinutes/60), mm = totalMinutes%60;
+
+  const episodeRow = (t, extra) => `
+    <div class="reading-row" data-task-id="${t.id}">
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</span>
+      ${extra}
+      <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="stats-hero" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stats-hero-card"><div class="hero-num">${listenedThisMonth.length}</div><div class="hero-label">escuchados este mes</div></div>
+      <div class="stats-hero-card"><div class="hero-num">${hh}h ${mm}m</div><div class="hero-label">tiempo este mes</div></div>
+    </div>
+    ${pending.length ? `
+      <div class="task-group-label">📋 Pendientes</div>
+      ${pending.map(t=>episodeRow(t, `
+        <span class="reading-pct" style="cursor:pointer;" onclick="editEpisodeDuration('${t.id}')" title="Editar duración">${t.estimatedMinutes?t.estimatedMinutes+'m':'⏱️'}</span>
+        <button class="icon-btn" onclick="handleCompleteClick('${t.id}', event)" title="Marcar como escuchado">✓</button>
+      `)).join('')}
+    ` : ''}
+    ${recentlyListened.length ? `
+      <div class="task-group-label">🎧 Escuchados recientemente</div>
+      ${recentlyListened.map(t=>episodeRow(t, `<span style="font-size:11px;color:var(--text-muted);">${t.estimatedMinutes?t.estimatedMinutes+'m · ':''}${t.completedAt||''}</span>`)).join('')}
+    ` : ''}
+    ${episodes.length===0 ? '<div class="empty">No hay episodios todavía. Agregá el primero arriba 🎧</div>' : ''}
+  `;
+}
+function editEpisodeDuration(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  const val = prompt('¿Cuántos minutos dura este episodio?', t.estimatedMinutes || '');
+  if(val === null) return;
+  const n = parseInt(val);
+  if(isNaN(n) || n<0) return;
+  t.estimatedMinutes = n;
+  saveState(); render();
+}
+
 function renderReadingModule(listId, container){
   const list = state.lists.find(l=>l.id===listId);
   const books = state.tasks.filter(t=>t.listId===listId);
@@ -4023,6 +4075,14 @@ function render(){
       addWrap.style.display='block';
       document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
       renderReadingModule(v.id, body);
+      return;
+    }
+    if(isPodcastList(currentListForModule)){
+      titleEl.innerText = currentListForModule.name;
+      subEl.innerText = 'Tus episodios';
+      addWrap.style.display='block';
+      document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
+      renderPodcastModule(v.id, body);
       return;
     }
   }
