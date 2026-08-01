@@ -65,6 +65,16 @@
   /* (se quitó el scroll propio de #lists — el usuario prefiere que scrollee todo el sidebar junto) */
 
   .list-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13.5px;color:var(--text-2);transition:background .12s;}
+  .list-icon-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+  .list-icon-square{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:10px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
+    transition:background .12s,border-color .12s;}
+  .list-icon-square:hover{background:var(--card);border-color:var(--border-strong);}
+  .list-icon-square.active{border-color:var(--accent);background:var(--accent-bg);}
+  .list-icon-emoji{font-size:19px;line-height:1;}
+  .list-icon-label{font-size:10px;color:var(--text-2);text-align:center;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .list-icon-badge{position:absolute;top:4px;right:5px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;
+    border-radius:8px;min-width:15px;height:15px;display:flex;align-items:center;justify-content:center;padding:0 3px;}
   .list-row:hover{background:var(--bg);}
   .list-row.active{background:var(--accent-bg);color:var(--accent-strong);font-weight:600;}
   .list-row .dot{width:7px;height:7px;border-radius:50%;margin-right:0;display:inline-block;flex-shrink:0;}
@@ -3292,14 +3302,35 @@ function renderSidebar(){
   }).join('');
 
   const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos' };
+  const GRID_LIST_KEYS = ['series','podcasts','videos'];
   const listsCollapsed = !!(state.collapsedSections && state.collapsedSections.lists);
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
   const listsEl = document.getElementById('lists');
   listsEl.className = 'section-body' + (listsCollapsed ? ' collapsed' : '');
-  listsEl.innerHTML = state.lists.filter(l=>{
+
+  const gridLists = state.lists.filter(l=>{
     const key = SMART_LIST_NAME_TO_KEY[normalize(l.name)];
+    return key && GRID_LIST_KEYS.includes(key) && sl[key] !== false;
+  });
+  const rowLists = state.lists.filter(l=>{
+    const key = SMART_LIST_NAME_TO_KEY[normalize(l.name)];
+    if(key && GRID_LIST_KEYS.includes(key)) return false;
     return !key || sl[key] !== false;
-  }).map(l=>{
+  });
+
+  const gridHtml = gridLists.length ? `<div class="list-icon-grid">${gridLists.map(l=>{
+    const count = state.tasks.filter(t=>t.listId===l.id && !t.done).length;
+    const active = state.currentView.type==='list' && state.currentView.id===l.id;
+    const emoji = (l.name.match(/^\S+/)||[''])[0];
+    const label = l.name.replace(/^\S+\s*/, '');
+    return `<div class="list-icon-square ${active?'active':''}" title="${escapeHtml(l.name)}" onclick="selectView('list','${l.id}')">
+      ${count>0 ? `<span class="list-icon-badge">${count}</span>` : ''}
+      <span class="list-icon-emoji">${emoji}</span>
+      <span class="list-icon-label">${escapeHtml(label)}</span>
+    </div>`;
+  }).join('')}</div>` : '';
+
+  listsEl.innerHTML = gridHtml + rowLists.map(l=>{
     const count = state.tasks.filter(t=>t.listId===l.id && !t.done).length;
     const active = state.currentView.type==='list' && state.currentView.id===l.id;
     return `<div class="list-row ${active?'active':''} ${count===0?'list-row-empty':''}" draggable="true" data-list-id="${l.id}"
