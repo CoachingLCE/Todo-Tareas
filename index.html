@@ -1575,7 +1575,9 @@ function addTask(){
     : inSpecificList ? state.currentView.id : getOrCreatePersonalListId();
   const parsed = detectSmartChips(raw);
   const manualDate = document.getElementById('new-task-date').value;
-  const finalDate = manualDateOverride ? (manualDate || null) : (parsed.date || manualDate || todayISO());
+  const targetList = state.lists.find(l=>l.id===targetListId);
+  const isCollectionList = isReadingList(targetList) || isPodcastList(targetList) || isMovieList(targetList) || isSeriesList(targetList);
+  const finalDate = manualDateOverride ? (manualDate || null) : (parsed.date || manualDate || (isCollectionList ? null : todayISO()));
   const finalPriority = manualPrioOverride ? newPrio : (parsed.priority || newPrio);
   const finalTitle = (parsed.date || parsed.priority || parsed.time) ? parsed.clean : raw;
   const maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===targetListId).map(t=>t.order||0));
