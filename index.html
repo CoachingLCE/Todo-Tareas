@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
+    color-scheme: light;
     --bg:#f6f6f4; --card:#ffffff; --card-hover:#fafaf9; --border:#e8e7e3; --border-strong:#d6d4cd;
     --text:#22221f; --text-2:#6e6d67; --text-muted:#a3a199;
     --accent:#3b6bf0; --accent-bg:#eaf0ff; --accent-strong:#2954c7;
@@ -21,6 +22,7 @@
     --ease:cubic-bezier(.2,.7,.3,1);
   }
   [data-theme="dark"]{
+    color-scheme: dark;
     --bg:#15151a; --card:#1e1e24; --card-hover:#24242b; --border:#2d2d35; --border-strong:#3e3e48;
     --text:#eeeef2; --text-2:#a3a2ac; --text-muted:#6c6b76;
     --accent:#6f93f7; --accent-bg:#1c2846; --accent-strong:#8caaff;
@@ -468,7 +470,7 @@
     .mobile-prio-menu button:hover{background:var(--bg);}
     .mobile-prio-menu .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
     .add-task input[type=date]{order:2;width:34px;padding:0;background:transparent;border:none;flex-shrink:0;color-scheme:light dark;}
-    [data-theme="dark"] .add-task input[type=date]{filter:invert(1);}
+    /* (el input de fecha ya se renderiza bien en oscuro gracias a color-scheme, arriba) */
     .add-task-submit{order:3;width:40px;height:40px;border-radius:50%;padding:0;font-size:22px;line-height:1;
       display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .smart-chips{position:fixed;left:10px;right:10px;bottom:66px;z-index:44;}
