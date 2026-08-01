@@ -1614,7 +1614,16 @@ async function fetchSpotifyMetadata(taskId, url){
     t.spotifyThumbnail = data.thumbnail_url || null;
     t.spotifyProvider = data.provider_name || 'Spotify';
     saveState(); render();
-  }catch(e){ console.error('No se pudo obtener la portada de Spotify', e); }
+  }catch(e){
+    console.error('No se pudo obtener la portada de Spotify', e);
+    // Respaldo: si Spotify bloquea la consulta (o falla la red), al menos mostramos
+    // un título prolijo en vez del link pelado.
+    const t = state.tasks.find(t=>t.id===taskId);
+    if(t && !t.spotifyTitle){
+      t.spotifyTitle = /\/episode\//.test(url) ? '🎧 Episodio de Spotify' : /\/show\//.test(url) ? '🎧 Programa de Spotify' : '🎧 Spotify';
+      saveState(); render();
+    }
+  }
 }
 
 function addTask(){
@@ -2390,7 +2399,7 @@ function renderSearchResult(t, q){
   if(t.youtubeUrl) bits.push(`🎥 Video de YouTube`);
 
   return `<div class="search-result" onclick="goToTaskFromSearch('${t.id}')">
-    <div class="r-title">📋 ${highlightMatch(t.youtubeTitle || t.title, q)}</div>
+    <div class="r-title">📋 ${highlightMatch(t.youtubeTitle || t.spotifyTitle || t.title, q)}</div>
     <div class="r-meta-rich">${bits.map(b=>`<span>${b}</span>`).join('')}</div>
   </div>`;
 }
