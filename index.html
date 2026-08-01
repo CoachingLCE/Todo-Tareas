@@ -1292,6 +1292,34 @@ const MEDICAL_RECOMMENDATIONS = [
   { icon:'💉', question:'¿Tenés vacunas o controles preventivos pendientes?', desc:'', title:'Vacunas / controles pendientes', years:null }
 ];
 function isMedicalList(list){ return list && normalize(list.name).includes('turnos medicos'); }
+function renderMedicalModule(listId, container){
+  const turns = state.tasks.filter(t=>t.listId===listId);
+  if(turns.length===0){ container.innerHTML = renderMedicalRecommendations(listId); return; }
+  const upcoming = turns.filter(t=>!t.done).sort((a,b)=>(a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99'));
+  const history = turns.filter(t=>t.done).sort((a,b)=>(b.completedAtTime||0)-(a.completedAtTime||0));
+
+  const turnRow = (t, extra) => `
+    <div class="reading-row" data-task-id="${t.id}">
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</span>
+      ${extra}
+      <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="stats-hero" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stats-hero-card"><div class="hero-num">${upcoming.length}</div><div class="hero-label">próximos turnos</div></div>
+      <div class="stats-hero-card"><div class="hero-num">${history.length}</div><div class="hero-label">en el historial</div></div>
+    </div>
+    ${upcoming.length ? `
+      <div class="task-group-label">🏥 Próximos turnos</div>
+      ${upcoming.map(t=>turnRow(t, `<span style="font-size:11px;color:${isOverdue(t)?'var(--high)':'var(--text-muted)'};">${t.dueDate?'📅 '+t.dueDate:'sin fecha'}</span>`)).join('')}
+    ` : ''}
+    ${history.length ? `
+      <div class="task-group-label">📋 Historial</div>
+      ${history.map(t=>turnRow(t, `<span style="font-size:11px;color:var(--text-muted);">${t.completedAt||''}</span>`)).join('')}
+    ` : ''}
+  `;
+}
 function renderMedicalRecommendations(listId){
   return `
     <div class="task-group-label">Recomendaciones</div>
@@ -3114,7 +3142,7 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 function renderDayProgress(){
   if(state.currentView.type === 'list'){
     const currentListForSummary = state.lists.find(l=>l.id===state.currentView.id);
-    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary) || isMovieList(currentListForSummary) || isSeriesList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
+    if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary) || isMovieList(currentListForSummary) || isSeriesList(currentListForSummary) || isMedicalList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
     renderListSummary(state.currentView.id); return;
   }
   const t0 = todayISO();
@@ -4202,6 +4230,14 @@ function render(){
       renderSeriesModule(v.id, body);
       return;
     }
+    if(isMedicalList(currentListForModule)){
+      titleEl.innerText = currentListForModule.name;
+      subEl.innerText = 'Turnos y controles preventivos';
+      addWrap.style.display='block';
+      document.getElementById('new-task-title').placeholder = getAddPlaceholder(v);
+      renderMedicalModule(v.id, body);
+      return;
+    }
   }
 
   addWrap.style.display='block';
@@ -4232,12 +4268,7 @@ function render(){
 
   let html = '';
   if(pending.length===0 && done.length===0){
-    const currentList = v.type==='list' ? state.lists.find(l=>l.id===v.id) : null;
-    if(isMedicalList(currentList)){
-      html = renderMedicalRecommendations(currentList.id);
-    } else {
-      html = '<div class="empty">No hay tareas todavía. Agregá una arriba.</div>';
-    }
+    html = '<div class="empty">No hay tareas todavía. Agregá una arriba.</div>';
   } else {
     if(pending.length) html += pending.map(renderTaskCard).join('');
     if(done.length && !state.hideCompleted){
