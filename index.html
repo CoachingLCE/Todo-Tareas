@@ -4193,12 +4193,18 @@ const CHALLENGE_POOL = [
   { key:'complete3', icon:'✅', text:'Completar 3 tareas', xp:30, coins:15, check: s=>s.doneToday>=3 },
   { key:'complete5', icon:'✅', text:'Completar 5 tareas', xp:50, coins:25, check: s=>s.doneToday>=5 },
   { key:'complete10', icon:'✅', text:'Completar 10 tareas', xp:100, coins:50, check: s=>s.doneToday>=10 },
+  { key:'complete15', icon:'✅', text:'Completar 15 tareas', xp:150, coins:75, check: s=>s.doneToday>=15 },
   { key:'important', icon:'🎯', text:'Completar una tarea importante', xp:40, coins:20, check: s=>s.doneImportantToday>=1 },
+  { key:'overdueDone', icon:'🔥', text:'Completar una tarea que estaba vencida', xp:50, coins:25, check: s=>s.overdueCompletedToday>=1 },
   { key:'noOverdue', icon:'📋', text:'No dejar tareas vencidas', xp:35, coins:15, check: s=>s.overdueCount===0 },
   { key:'createFuture', icon:'📅', text:'Crear 3 tareas para próximos días', xp:30, coins:15, check: s=>s.futureCreatedToday>=3 },
   { key:'inboxZero', icon:'📥', text:'Llegar a Inbox Cero', xp:100, coins:50, check: s=>s.pendingTodayCount===0 },
+  { key:'cleanOld', icon:'🧹', text:'Completar 5 tareas de más de 14 días', xp:40, coins:20, check: s=>s.oldCompletedToday>=5 },
   { key:'enterApp', icon:'🔥', text:'Entrar a la app hoy', xp:10, coins:5, check: ()=>true },
-  { key:'beforeNoon', icon:'🌅', text:'Completar una tarea antes del mediodía', xp:30, coins:15, check: s=>s.completedBeforeNoon }
+  { key:'beforeNoon', icon:'🌅', text:'Completar una tarea antes del mediodía', xp:30, coins:15, check: s=>s.completedBeforeNoon },
+  { key:'lateNight', icon:'🌙', text:'Completar algo antes de dormir (después de las 20hs)', xp:20, coins:10, check: s=>s.lateNightCompleted },
+  { key:'streak2', icon:'🔥', text:'Mantener la racha diaria', xp:20, coins:10, check: s=>s.streak>=2 },
+  { key:'markFavorite', icon:'⭐', text:'Marcar una tarea como favorita', xp:15, coins:10, check: s=>s.hasFavorite }
 ];
 /** Genera (una sola vez por día) los 3 desafíos de hoy, elegidos de forma estable según la fecha. */
 function generateDailyChallenges(){
@@ -4222,13 +4228,24 @@ function computeChallengeStats(){
     if(!t.createdAt) return false;
     return toISO(new Date(t.createdAt))===t0 && t.dueDate && t.dueDate>t0;
   }).length;
+  const overdueCompletedToday = doneTodayTasks.filter(t=> t.dueDate && t.dueDate < t0).length;
+  const oldCompletedToday = doneTodayTasks.filter(t=>{
+    if(!t.createdAt) return false;
+    const ageDays = (Date.now() - t.createdAt) / 86400000;
+    return ageDays > 14;
+  }).length;
   return {
     doneToday: doneTodayTasks.length,
     doneImportantToday: doneTodayTasks.filter(t=>t.priority==='alta').length,
     overdueCount: state.tasks.filter(t=>isOverdue(t) && !isConsumptionList(t.listId)).length,
     futureCreatedToday,
+    overdueCompletedToday,
+    oldCompletedToday,
     pendingTodayCount: state.tasks.filter(t=>!t.done && t.dueDate===t0 && !isConsumptionList(t.listId)).length,
-    completedBeforeNoon: doneTodayTasks.some(t=> t.completedAtTime && new Date(t.completedAtTime).getHours() < 12)
+    completedBeforeNoon: doneTodayTasks.some(t=> t.completedAtTime && new Date(t.completedAtTime).getHours() < 12),
+    lateNightCompleted: doneTodayTasks.some(t=> t.completedAtTime && new Date(t.completedAtTime).getHours() >= 20),
+    streak: computeStreak(),
+    hasFavorite: state.tasks.some(t=>t.favorite)
   };
 }
 /** Revisa el progreso de los desafíos de hoy y otorga XP/monedas la primera vez que se completa cada uno. */
