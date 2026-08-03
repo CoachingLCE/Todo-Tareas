@@ -282,6 +282,9 @@
   .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
   .chart-card canvas{max-height:220px;}
   .stats-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .cal-mode-toggle{display:inline-flex;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:14px;}
+  .cal-mode-btn{background:none;border:none;padding:6px 16px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:7px;transition:background .12s,color .12s;}
+  .cal-mode-btn.active{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);}
   .reading-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
   .reading-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;}
   .reading-title{flex:1;font-size:13.5px;font-weight:500;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -914,6 +917,7 @@ function migrateState(){
     showReminders: true,
     showSmartListToasts: true,
     dashboardDetailsOpen: true,
+    calendarViewMode: null,
     smartLists: { leer:true, peliculas:true, series:true, podcasts:true, videos:true, importantes:true, hoy:true, completadas:true }
   };
   Object.keys(defaultSettings).forEach(key=>{
@@ -2047,6 +2051,13 @@ function openSettingsPanel(){
       </div>
     </div>`;
 }
+/** Guarda la elección explícita de vista (semana/mes) para Calendario, sin depender del ancho de la ventana. */
+function setCalendarViewMode(mode){
+  state.settings.calendarViewMode = mode;
+  saveState();
+  render();
+}
+
 function updateSetting(key, value){
   state.settings[key] = value;
   if(key==='smartHeaderScroll' && !value){ isHeaderCompact = false; applyHeaderCompactClasses(); }
@@ -4482,8 +4493,14 @@ function render(){
     stats: ()=>{ titleEl.innerText='Estadísticas'; subEl.innerText='Tu actividad y productividad'; addWrap.style.display='none'; renderStats(body); },
     calendar: ()=>{
       titleEl.innerText='Calendario'; subEl.innerText='Arrastrá una tarea a otro día para reprogramarla'; addWrap.style.display='none';
-      if(window.innerWidth <= 768){ renderWeek(body); appendMobileWeekAgenda(body); }
-      else renderCalendar(body);
+      const mode = state.settings.calendarViewMode || (window.innerWidth <= 768 ? 'week' : 'month');
+      body.innerHTML = `<div class="cal-mode-toggle">
+        <button class="cal-mode-btn ${mode==='week'?'active':''}" onclick="setCalendarViewMode('week')">Semana</button>
+        <button class="cal-mode-btn ${mode==='month'?'active':''}" onclick="setCalendarViewMode('month')">Mes</button>
+      </div><div id="cal-mode-body"></div>`;
+      const modeBody = document.getElementById('cal-mode-body');
+      if(mode==='week'){ renderWeek(modeBody); if(window.innerWidth <= 768) appendMobileWeekAgenda(modeBody); }
+      else renderCalendar(modeBody);
     },
     week: ()=>{ titleEl.innerText='Semana'; subEl.innerText='Tus tareas de la semana'; addWrap.style.display='none'; renderWeek(body); },
     kanban: ()=>{ titleEl.innerText='Kanban'; subEl.innerText='Arrastrá tarjetas entre columnas para cambiar la prioridad'; addWrap.style.display='none'; renderKanban(body); },
