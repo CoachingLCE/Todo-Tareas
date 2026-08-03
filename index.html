@@ -292,6 +292,26 @@
   .cal-mode-btn{background:none;border:none;padding:6px 16px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:7px;transition:background .12s,color .12s;}
   .cal-mode-btn.active{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);}
   .reading-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .notes-board{display:flex;gap:14px;align-items:flex-start;overflow-x:auto;padding-bottom:10px;}
+  .notes-column{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;width:250px;flex-shrink:0;min-height:80px;}
+  .notes-column-header{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;margin-bottom:8px;padding:2px 4px;}
+  .notes-column-header span[contenteditable]{flex:1;outline:none;border-radius:4px;padding:1px 4px;}
+  .notes-column-header span[contenteditable]:focus{background:var(--bg);}
+  .notes-column-count{font-size:11px;color:var(--text-muted);background:var(--bg);border-radius:10px;padding:1px 7px;}
+  .note-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 11px;margin-bottom:8px;cursor:pointer;transition:border-color .12s,box-shadow .12s;}
+  .note-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-sm);}
+  .note-card-title{font-size:13px;font-weight:600;}
+  .note-card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+  .note-card-log-count{font-size:11px;color:var(--text-muted);margin-top:6px;}
+  .notes-add-card-btn,.notes-add-column-btn{width:100%;background:none;border:1px dashed var(--border);border-radius:var(--radius-sm);
+    padding:8px;font-size:12px;color:var(--text-muted);cursor:pointer;transition:background .12s,border-color .12s;}
+  .notes-add-card-btn:hover,.notes-add-column-btn:hover{background:var(--bg);border-color:var(--border-strong);}
+  .notes-add-column-btn{width:220px;flex-shrink:0;align-self:flex-start;}
+  .notes-log-list{margin-top:14px;max-height:260px;overflow-y:auto;}
+  .notes-log-entry{padding:10px 0;border-top:1px solid var(--border);}
+  .notes-log-entry:first-child{border-top:none;}
+  .notes-log-date{font-size:11px;color:var(--text-muted);margin-bottom:3px;}
+  .notes-log-text{font-size:13px;line-height:1.5;white-space:pre-wrap;}
   .reading-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;}
   .reading-title{flex:1;font-size:13.5px;font-weight:500;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .reading-pct{font-size:12px;color:var(--text-muted);font-weight:600;min-width:32px;text-align:right;}
@@ -1017,6 +1037,20 @@ function migrateState(){
     if(!t.reminders){
       t.reminders = (t.reminderDaysBefore !== null && t.reminderDaysBefore !== undefined) ? [t.reminderDaysBefore] : [];
     }
+  });
+  if(!state.noteColumns){
+    state.noteColumns = [
+      { id: uid(), name: 'Por hacer' },
+      { id: uid(), name: 'En progreso' },
+      { id: uid(), name: 'Terminado' }
+    ];
+  }
+  if(!state.notes) state.notes = [];
+  state.notes.forEach(n=>{
+    if(!n.tags) n.tags = [];
+    if(!n.log) n.log = [];
+    if(!n.order) n.order = 0;
+    if(!n.createdAt) n.createdAt = Date.now();
   });
 }
 
@@ -3363,6 +3397,7 @@ function renderSidebar(){
       <div class="nav-item ${state.currentView.type==='stats'?'active':''}" onclick="selectView('stats', null)"><span class="nav-icon">${icon('barChart')}</span><span>Estadísticas</span></div>
       <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
       <div class="nav-item ${state.currentView.type==='cleanup'?'active':''}" onclick="selectView('cleanup', null)"><span class="nav-icon">🧹</span><span>Limpieza</span></div>
+      <div class="nav-item ${state.currentView.type==='notes'?'active':''}" onclick="selectView('notes', null)"><span class="nav-icon">🗒️</span><span>Notas</span></div>
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
     </div>
     <div class="nav-item ${navMoreExpanded?'expanded':''}" id="nav-more-toggle" onclick="toggleNavMore()"><span class="nav-icon nav-more-chevron">⌄</span><span id="nav-more-label">${navMoreExpanded?'Menos':'Más'}</span></div>
@@ -4128,6 +4163,162 @@ function computeCleanupStats(){
   const total = duplicateExtraCount + noDateCount + overdueCount + emptyListsCount + repeatedRemindersCount;
   return { duplicateGroups, duplicateExtraCount, noDateCount, overdueCount, emptyListsCount, repeatedRemindersCount, total };
 }
+/* =====================================================================
+   NOTAS — tablero estilo Trello, con historial que se va acumulando por tarjeta
+   ===================================================================== */
+function renderNotesBoard(container){
+  container.innerHTML = `
+    <div class="notes-board">
+      ${state.noteColumns.map(col=>{
+        const cards = state.notes.filter(n=>n.columnId===col.id).sort((a,b)=>(a.order||0)-(b.order||0));
+        return `<div class="notes-column" ondragover="onNoteColDragOver(event)" ondrop="onNoteColDrop(event,'${col.id}')">
+          <div class="notes-column-header">
+            <span contenteditable="true" onblur="renameNoteColumn('${col.id}', this.innerText)">${escapeHtml(col.name)}</span>
+            <span class="notes-column-count">${cards.length}</span>
+            <button class="icon-btn" onclick="deleteNoteColumn('${col.id}')" title="Eliminar columna">✕</button>
+          </div>
+          ${cards.map(n=>`
+            <div class="note-card" draggable="true" ondragstart="onNoteDragStart(event,'${n.id}')" onclick="openNoteModal('${n.id}')">
+              <div class="note-card-title">${escapeHtml(n.title)}</div>
+              ${n.tags.length ? `<div class="note-card-tags">${n.tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+              ${n.log.length ? `<div class="note-card-log-count">📝 ${n.log.length}</div>` : ''}
+            </div>`).join('')}
+          <button class="notes-add-card-btn" onclick="addNote('${col.id}')">+ Agregar nota</button>
+        </div>`;
+      }).join('')}
+      <button class="notes-add-column-btn" onclick="addNoteColumn()">+ Nueva columna</button>
+    </div>`;
+}
+let draggedNoteId = null;
+function onNoteDragStart(evt, id){ draggedNoteId = id; }
+function onNoteColDragOver(evt){ evt.preventDefault(); }
+function onNoteColDrop(evt, columnId){
+  evt.preventDefault();
+  if(!draggedNoteId) return;
+  const n = state.notes.find(n=>n.id===draggedNoteId);
+  if(!n) return;
+  n.columnId = columnId;
+  n.order = Math.max(0, ...state.notes.filter(x=>x.columnId===columnId).map(x=>x.order||0)) + 1;
+  draggedNoteId = null;
+  saveState(); render();
+}
+function addNoteColumn(){
+  const name = prompt('Nombre de la columna:');
+  if(!name || !name.trim()) return;
+  state.noteColumns.push({ id: uid(), name: name.trim() });
+  saveState(); render();
+}
+function renameNoteColumn(id, newName){
+  const col = state.noteColumns.find(c=>c.id===id);
+  if(!col) return;
+  const clean = newName.trim();
+  if(clean && clean !== col.name){ col.name = clean; saveState(); }
+}
+function deleteNoteColumn(id){
+  const count = state.notes.filter(n=>n.columnId===id).length;
+  if(!confirm(`¿Eliminar esta columna${count?` y sus ${count} nota(s)`:''}?`)) return;
+  state.notes = state.notes.filter(n=>n.columnId!==id);
+  state.noteColumns = state.noteColumns.filter(c=>c.id!==id);
+  saveState(); render();
+}
+function addNote(columnId){
+  const title = prompt('Título de la nota:');
+  if(!title || !title.trim()) return;
+  const maxOrder = Math.max(0, ...state.notes.filter(n=>n.columnId===columnId).map(n=>n.order||0));
+  const note = { id: uid(), columnId, title: title.trim(), tags: [], log: [], order: maxOrder+1, createdAt: Date.now() };
+  state.notes.push(note);
+  saveState(); render();
+  openNoteModal(note.id);
+}
+function deleteNote(id){
+  if(!confirm('¿Eliminar esta nota? Se pierde todo su historial.')) return;
+  state.notes = state.notes.filter(n=>n.id!==id);
+  saveState();
+  closeModal();
+  render();
+}
+function openNoteModal(id){
+  const n = state.notes.find(n=>n.id===id);
+  if(!n) return;
+  const col = state.noteColumns.find(c=>c.id===n.columnId);
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()" style="width:520px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <input type="text" id="note-title-input" value="${escapeHtml(n.title)}" onblur="renameNote('${n.id}', this.value)"
+            style="font-size:18px;font-weight:700;border:none;background:none;padding:0;margin-bottom:4px;flex:1;">
+          <button class="icon-btn" onclick="deleteNote('${n.id}')" title="Eliminar nota">🗑️</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:14px;">📂 ${escapeHtml(col?col.name:'')}</div>
+
+        <div class="field-label" style="margin-top:0;">🏷️ Etiquetas</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          ${n.tags.map(t=>`<span class="tag">${escapeHtml(t)} <span style="cursor:pointer;" onclick="removeNoteTag('${n.id}','${escapeHtml(t)}')">✕</span></span>`).join('')}
+        </div>
+        <div class="recur-extra">
+          <input type="text" id="note-tag-input" placeholder="Nueva etiqueta" onkeydown="if(event.key==='Enter')addNoteTag('${n.id}')">
+          <button class="btn" onclick="addNoteTag('${n.id}')">Etiquetar</button>
+        </div>
+
+        <div class="field-label">📝 Historial</div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;">Las entradas quedan guardadas para siempre — es un registro, no se editan ni se borran.</div>
+        <textarea id="note-log-input" placeholder="Agregar una entrada al historial..." style="min-height:70px;"></textarea>
+        <button class="btn primary" style="margin-top:8px;" onclick="addNoteLogEntry('${n.id}')">Agregar al historial</button>
+
+        <div class="notes-log-list">
+          ${n.log.length===0 ? '<div class="empty">Todavía no hay entradas.</div>' : n.log.slice().reverse().map(entry=>`
+            <div class="notes-log-entry">
+              <div class="notes-log-date">🕐 ${formatFullDateTime(entry.createdAt)}</div>
+              <div class="notes-log-text">${escapeHtml(entry.text).replace(/\n/g,'<br>')}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="modal-actions">
+          <div></div>
+          <div class="right"><button class="btn primary" onclick="closeModal()">Cerrar</button></div>
+        </div>
+      </div>
+    </div>`;
+}
+function renameNote(id, newTitle){
+  const n = state.notes.find(n=>n.id===id);
+  if(!n) return;
+  const clean = newTitle.trim();
+  if(clean && clean !== n.title){ n.title = clean; saveState(); }
+}
+function addNoteTag(id){
+  const n = state.notes.find(n=>n.id===id);
+  const input = document.getElementById('note-tag-input');
+  const tag = input.value.trim();
+  if(!n || !tag) return;
+  if(!n.tags.includes(tag)) n.tags.push(tag);
+  saveState();
+  openNoteModal(id);
+}
+function removeNoteTag(id, tag){
+  const n = state.notes.find(n=>n.id===id);
+  if(!n) return;
+  n.tags = n.tags.filter(t=>t!==tag);
+  saveState();
+  openNoteModal(id);
+}
+function addNoteLogEntry(id){
+  const n = state.notes.find(n=>n.id===id);
+  const input = document.getElementById('note-log-input');
+  const text = input.value.trim();
+  if(!n || !text) return;
+  n.log.push({ id: uid(), text, createdAt: Date.now() });
+  saveState();
+  openNoteModal(id);
+}
+/** Formatea un timestamp completo, ej: "24 jun 2026, 12:30". */
+function formatFullDateTime(ts){
+  const d = new Date(ts);
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 function renderCleanupCenter(container){
   const s = computeCleanupStats();
   container.innerHTML = `
@@ -4539,6 +4730,7 @@ function render(){
     week: ()=>{ titleEl.innerText='Semana'; subEl.innerText='Tus tareas de la semana'; addWrap.style.display='none'; renderWeek(body); },
     kanban: ()=>{ titleEl.innerText='Kanban'; subEl.innerText='Arrastrá tarjetas entre columnas para cambiar la prioridad'; addWrap.style.display='none'; renderKanban(body); },
     cleanup: ()=>{ titleEl.innerText='Limpieza'; subEl.innerText='Cosas para revisar y resolver'; addWrap.style.display='none'; renderCleanupCenter(body); },
+    notes: ()=>{ titleEl.innerText='Notas'; subEl.innerText='Tablero de notas con historial'; addWrap.style.display='none'; renderNotesBoard(body); },
     agenda: ()=>{ titleEl.innerText='Agenda'; subEl.innerText='Vencidas y próximas, agrupadas por día'; addWrap.style.display='none'; renderAgenda(body); },
     upcoming: ()=>{ titleEl.innerText='Próximos'; subEl.innerText='Tareas con fecha, agrupadas por día'; addWrap.style.display='none'; renderUpcoming(body); }
   };
