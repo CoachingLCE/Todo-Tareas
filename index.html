@@ -3429,7 +3429,7 @@ function renderSidebar(){
     return `<div class="nav-item ${active?'active':''}" onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
   }).join('');
 
-  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos', '🛒 compras':'compras', '🏥 turnos médicos':'turnosmedicos' };
+  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 peliculas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos', '🛒 compras':'compras', '🏥 turnos medicos':'turnosmedicos' };
   const GRID_LIST_KEYS = ['leer','peliculas','series','podcasts','videos','compras','turnosmedicos'];
   const listsCollapsed = !!(state.collapsedSections && state.collapsedSections.lists);
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
