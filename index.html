@@ -1065,9 +1065,8 @@ function migrateState(){
     ];
   }
   if(!state.notes) state.notes = [];
-  if(!state.progress) state.progress = { xp:0, coins:0 };
+  if(!state.progress) state.progress = { xp:0 };
   if(typeof state.progress.xp !== 'number') state.progress.xp = 0;
-  if(typeof state.progress.coins !== 'number') state.progress.coins = 0;
   if(typeof state.progress.loginStreak !== 'number') state.progress.loginStreak = 0;
   if(state.progress.lastLoginDate === undefined) state.progress.lastLoginDate = null;
   generateDailyChallenges();
@@ -4234,21 +4233,21 @@ function computeCleanupStats(){
    DESAFÍOS DIARIOS — genera 3 por día, con XP y monedas
    ===================================================================== */
 const CHALLENGE_POOL = [
-  { key:'complete3', icon:'✅', text:'Completar 3 tareas', xp:30, coins:15, check: s=>s.doneToday>=3 },
-  { key:'complete5', icon:'✅', text:'Completar 5 tareas', xp:50, coins:25, check: s=>s.doneToday>=5 },
-  { key:'complete10', icon:'✅', text:'Completar 10 tareas', xp:100, coins:50, check: s=>s.doneToday>=10 },
-  { key:'complete15', icon:'✅', text:'Completar 15 tareas', xp:150, coins:75, check: s=>s.doneToday>=15 },
-  { key:'important', icon:'🎯', text:'Completar una tarea importante', xp:40, coins:20, check: s=>s.doneImportantToday>=1 },
-  { key:'overdueDone', icon:'🔥', text:'Completar una tarea que estaba vencida', xp:50, coins:25, check: s=>s.overdueCompletedToday>=1 },
-  { key:'noOverdue', icon:'📋', text:'No dejar tareas vencidas', xp:35, coins:15, check: s=>s.overdueCount===0 },
-  { key:'createFuture', icon:'📅', text:'Crear 3 tareas para próximos días', xp:30, coins:15, check: s=>s.futureCreatedToday>=3 },
-  { key:'inboxZero', icon:'📥', text:'Llegar a Inbox Cero', xp:100, coins:50, check: s=>s.pendingTodayCount===0 },
-  { key:'cleanOld', icon:'🧹', text:'Completar 5 tareas de más de 14 días', xp:40, coins:20, check: s=>s.oldCompletedToday>=5 },
-  { key:'enterApp', icon:'🔥', text:'Entrar a la app hoy', xp:10, coins:5, check: ()=>true },
-  { key:'beforeNoon', icon:'🌅', text:'Completar una tarea antes del mediodía', xp:30, coins:15, check: s=>s.completedBeforeNoon },
-  { key:'lateNight', icon:'🌙', text:'Completar algo antes de dormir (después de las 20hs)', xp:20, coins:10, check: s=>s.lateNightCompleted },
-  { key:'streak2', icon:'🔥', text:'Mantener la racha diaria', xp:20, coins:10, check: s=>s.streak>=2 },
-  { key:'markFavorite', icon:'⭐', text:'Marcar una tarea como favorita', xp:15, coins:10, check: s=>s.hasFavorite }
+  { key:'complete3', icon:'✅', text:'Completar 3 tareas', xp:30, check: s=>s.doneToday>=3 },
+  { key:'complete5', icon:'✅', text:'Completar 5 tareas', xp:50, check: s=>s.doneToday>=5 },
+  { key:'complete10', icon:'✅', text:'Completar 10 tareas', xp:100, check: s=>s.doneToday>=10 },
+  { key:'complete15', icon:'✅', text:'Completar 15 tareas', xp:150, check: s=>s.doneToday>=15 },
+  { key:'important', icon:'🎯', text:'Completar una tarea importante', xp:40, check: s=>s.doneImportantToday>=1 },
+  { key:'overdueDone', icon:'🔥', text:'Completar una tarea que estaba vencida', xp:50, check: s=>s.overdueCompletedToday>=1 },
+  { key:'noOverdue', icon:'📋', text:'No dejar tareas vencidas', xp:35, check: s=>s.overdueCount===0 },
+  { key:'createFuture', icon:'📅', text:'Crear 3 tareas para próximos días', xp:30, check: s=>s.futureCreatedToday>=3 },
+  { key:'inboxZero', icon:'📥', text:'Llegar a Inbox Cero', xp:100, check: s=>s.pendingTodayCount===0 },
+  { key:'cleanOld', icon:'🧹', text:'Completar 5 tareas de más de 14 días', xp:40, check: s=>s.oldCompletedToday>=5 },
+  { key:'enterApp', icon:'🔥', text:'Entrar a la app hoy', xp:10, check: ()=>true },
+  { key:'beforeNoon', icon:'🌅', text:'Completar una tarea antes del mediodía', xp:30, check: s=>s.completedBeforeNoon },
+  { key:'lateNight', icon:'🌙', text:'Completar algo antes de dormir (después de las 20hs)', xp:20, check: s=>s.lateNightCompleted },
+  { key:'streak2', icon:'🔥', text:'Mantener la racha diaria', xp:20, check: s=>s.streak>=2 },
+  { key:'markFavorite', icon:'⭐', text:'Marcar una tarea como favorita', xp:15, check: s=>s.hasFavorite }
 ];
 /** Genera (una sola vez por día) los 3 desafíos de hoy, elegidos de forma estable según la fecha. */
 /** Cuenta los días SEGUIDOS que se entró a la app (no depende de completar tareas). */
@@ -4320,7 +4319,6 @@ function updateDailyChallengesProgress(){
       if(!item.rewarded){
         item.rewarded = true;
         state.progress.xp += template.xp;
-        state.progress.coins += template.coins;
         showToast(`🎯 ¡Desafío completado! "${template.text}" +${template.xp} XP`);
       }
     }
@@ -4329,9 +4327,8 @@ function updateDailyChallengesProgress(){
   if(allDone && !state.dailyChallenges.bonusGiven){
     state.dailyChallenges.bonusGiven = true;
     state.progress.xp += 70;
-    state.progress.coins += 50;
     changed = true;
-    showToast('🔥 ¡Completaste los 3 desafíos de hoy! +70 XP +50 monedas');
+    showToast('🔥 ¡Completaste los 3 desafíos de hoy! +70 XP');
   }
   if(changed) saveState();
 }
@@ -4362,7 +4359,7 @@ function renderProgressView(container){
     <div class="progress-hero-card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:16px;font-weight:700;">⭐ Nivel ${level}</div>
-        <div style="font-size:12.5px;color:var(--text-muted);">💰 ${p.coins} monedas · ${p.xp} XP totales</div>
+        <div style="font-size:12.5px;color:var(--text-muted);">⭐ ${p.xp} XP totales</div>
       </div>
       <div class="dpc-progress-wrap" style="margin-top:10px;"><div class="dpc-progress-bar" style="width:${xpIntoLevel}%;"></div></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${xpIntoLevel} / 100 XP para el próximo nivel</div>
@@ -4379,7 +4376,7 @@ function renderProgressView(container){
     </div>
     <div class="task-group-label">⚡ Desafíos de hoy</div>
     ${items}
-    ${allDone ? `<div class="challenge-bonus-banner">🔥 ¡Completaste los 3 desafíos de hoy! +70 XP · +50 monedas</div>` : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">Completá los 3 para ganar un bono extra de +70 XP y +50 monedas.</div>`}
+    ${allDone ? `<div class="challenge-bonus-banner">🔥 ¡Completaste los 3 desafíos de hoy! +70 XP</div>` : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">Completá los 3 para ganar un bono extra de +70 XP.</div>`}
   `;
 }
 /** Widget compacto debajo de "Nueva lista", accede directo a Mi Progreso. */
@@ -4970,7 +4967,7 @@ function render(){
     kanban: ()=>{ titleEl.innerText='Kanban'; subEl.innerText='Arrastrá tarjetas entre columnas para cambiar la prioridad'; addWrap.style.display='none'; renderKanban(body); },
     cleanup: ()=>{ titleEl.innerText='Limpieza'; subEl.innerText='Cosas para revisar y resolver'; addWrap.style.display='none'; renderCleanupCenter(body); },
     notes: ()=>{ titleEl.innerText='Notas'; subEl.innerText='Tablero de notas con historial'; addWrap.style.display='none'; renderNotesBoard(body); },
-    progress: ()=>{ titleEl.innerText='Mi Progreso'; subEl.innerText='Desafíos, XP y monedas'; addWrap.style.display='none'; renderProgressView(body); },
+    progress: ()=>{ titleEl.innerText='Mi Progreso'; subEl.innerText='Desafíos y XP'; addWrap.style.display='none'; renderProgressView(body); },
     agenda: ()=>{ titleEl.innerText='Agenda'; subEl.innerText='Vencidas y próximas, agrupadas por día'; addWrap.style.display='none'; renderAgenda(body); },
     upcoming: ()=>{ titleEl.innerText='Próximos'; subEl.innerText='Tareas con fecha, agrupadas por día'; addWrap.style.display='none'; renderUpcoming(body); }
   };
