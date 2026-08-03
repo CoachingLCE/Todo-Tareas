@@ -82,6 +82,8 @@
   .list-row-empty:hover{opacity:.8;}
   .list-row.dragging{opacity:.4;}
   .list-row.drag-over{box-shadow:inset 0 2px 0 var(--accent);}
+  .list-icon-square.dragging{opacity:.4;}
+  .list-icon-square.drag-over{box-shadow:inset 0 0 0 2px var(--accent);}
   .list-row-inner{display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .add-list{display:flex;gap:6px;padding:6px 2px;margin-top:10px;margin-bottom:6px;}
   .add-list input{flex:1;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 9px;font-size:13px;background:var(--card);color:var(--text);}
@@ -1383,7 +1385,7 @@ function onListDrop(evt, targetListId){
 }
 function onListDragEnd(evt){
   evt.currentTarget.classList.remove('dragging');
-  document.querySelectorAll('.list-row.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  document.querySelectorAll('.list-row.drag-over, .list-icon-square.drag-over').forEach(el=>el.classList.remove('drag-over'));
   draggedListId = null;
 }
 
@@ -3412,8 +3414,8 @@ function renderSidebar(){
     return `<div class="nav-item ${active?'active':''}" onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
   }).join('');
 
-  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos' };
-  const GRID_LIST_KEYS = ['series','podcasts','videos'];
+  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 películas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos', '🛒 compras':'compras', '🏥 turnos médicos':'turnosmedicos' };
+  const GRID_LIST_KEYS = ['leer','peliculas','series','podcasts','videos','compras','turnosmedicos'];
   const listsCollapsed = !!(state.collapsedSections && state.collapsedSections.lists);
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
   const listsEl = document.getElementById('lists');
@@ -3434,7 +3436,10 @@ function renderSidebar(){
     const active = state.currentView.type==='list' && state.currentView.id===l.id;
     const emoji = (l.name.match(/^\S+/)||[''])[0];
     const label = l.name.replace(/^\S+\s*/, '');
-    return `<div class="list-icon-square ${active?'active':''}" title="${escapeHtml(l.name)}" onclick="selectView('list','${l.id}')">
+    return `<div class="list-icon-square ${active?'active':''}" title="${escapeHtml(l.name)}" draggable="true"
+      ondragstart="onListDragStart(event,'${l.id}')" ondragover="onListDragOver(event)"
+      ondragleave="onListDragLeave(event)" ondrop="onListDrop(event,'${l.id}')" ondragend="onListDragEnd(event)"
+      onclick="selectView('list','${l.id}')">
       ${count>0 ? `<span class="list-icon-badge">${count}</span>` : ''}
       <span class="list-icon-emoji">${emoji}</span>
       <span class="list-icon-label">${escapeHtml(label)}</span>
