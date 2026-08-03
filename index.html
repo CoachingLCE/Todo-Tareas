@@ -1069,6 +1069,8 @@ function migrateState(){
   if(typeof state.progress.xp !== 'number') state.progress.xp = 0;
   if(typeof state.progress.loginStreak !== 'number') state.progress.loginStreak = 0;
   if(state.progress.lastLoginDate === undefined) state.progress.lastLoginDate = null;
+  if(!state.achievements) state.achievements = { unlocked: [] };
+  if(!state.achievements.unlocked) state.achievements.unlocked = [];
   generateDailyChallenges();
   updateLoginStreak();
   state.notes.forEach(n=>{
@@ -4263,6 +4265,82 @@ function updateLoginStreak(){
   }
   state.progress.lastLoginDate = t0;
 }
+/* =====================================================================
+   LOGROS, MEDALLAS DE RACHA Y NIVELES
+   ===================================================================== */
+/** Logros por cantidad de tareas/importancia/organización (calculados sobre el estado actual). */
+const ACHIEVEMENT_POOL = [
+  { key:'first_task', icon:'🌱', name:'Primeros pasos', desc:'Primera tarea completada', xp:20, check: s=>s.totalCompleted>=1 },
+  { key:'tasks_50', icon:'⚡', name:'Productividad', desc:'50 tareas completadas', xp:100, check: s=>s.totalCompleted>=50 },
+  { key:'tasks_100', icon:'🚀', name:'Productividad', desc:'100 tareas completadas', xp:250, check: s=>s.totalCompleted>=100 },
+  { key:'tasks_500', icon:'🏆', name:'Productividad', desc:'500 tareas completadas', xp:1000, check: s=>s.totalCompleted>=500 },
+  { key:'inbox_zero_first', icon:'📥', name:'Organización', desc:'Inbox Cero por primera vez', xp:150, check: s=>s.pendingTodayCount===0 },
+  { key:'important_10', icon:'🎯', name:'Foco', desc:'10 tareas importantes completadas', xp:200, check: s=>s.totalImportantCompleted>=10 },
+  { key:'important_50', icon:'🔥', name:'Foco', desc:'50 tareas importantes completadas', xp:500, check: s=>s.totalImportantCompleted>=50 }
+];
+/** Medallas por racha de días seguidos entrando a la app. */
+const STREAK_MEDALS = [
+  { key:'streak_3', days:3, name:'Primer hábito', xp:50 },
+  { key:'streak_7', days:7, name:'Semana perfecta', xp:150 },
+  { key:'streak_14', days:14, name:'Dos semanas enfocado', xp:300 },
+  { key:'streak_30', days:30, name:'Máquina de hábitos', xp:700 },
+  { key:'streak_100', days:100, name:'Disciplina total', xp:2000 }
+];
+/** Mensajes especiales al llegar a ciertos niveles (sin XP extra, son solo de reconocimiento). */
+const LEVEL_MILESTONES = [
+  { key:'level_2', level:2, name:'Primer impulso', icon:'🌱' },
+  { key:'level_3', level:3, name:'Tomando ritmo', icon:'🔥' },
+  { key:'level_5', level:5, name:'Constante', icon:'⚡' }
+];
+function computeAchievementStats(){
+  const chStats = computeChallengeStats();
+  return {
+    totalCompleted: state.tasks.filter(t=>t.done && !isConsumptionList(t.listId)).length,
+    totalImportantCompleted: state.tasks.filter(t=>t.done && t.priority==='alta' && !isConsumptionList(t.listId)).length,
+    pendingTodayCount: chStats.pendingTodayCount
+  };
+}
+/** Revisa logros, medallas de racha y niveles alcanzados; otorga XP y avisa la primera vez que se cumple cada uno. */
+function updateAchievements(){
+  if(!state.achievements) return;
+  const unlocked = state.achievements.unlocked;
+  let changed = false;
+  const stats = computeAchievementStats();
+
+  ACHIEVEMENT_POOL.forEach(a=>{
+    if(unlocked.includes(a.key)) return;
+    if(a.check(stats)){
+      unlocked.push(a.key);
+      state.progress.xp += a.xp;
+      changed = true;
+      showToast(`🏆 ¡Nuevo logro desbloqueado! "${a.icon} ${a.desc}" +${a.xp} XP`);
+    }
+  });
+
+  const streakDays = state.progress.loginStreak || 0;
+  STREAK_MEDALS.forEach(m=>{
+    if(unlocked.includes(m.key)) return;
+    if(streakDays >= m.days){
+      unlocked.push(m.key);
+      state.progress.xp += m.xp;
+      changed = true;
+      showToast(`🔥 ¡Medalla desbloqueada! "${m.name}" (${m.days} días seguidos) +${m.xp} XP`);
+    }
+  });
+
+  const level = Math.floor(state.progress.xp/100) + 1;
+  LEVEL_MILESTONES.forEach(l=>{
+    if(unlocked.includes(l.key)) return;
+    if(level >= l.level){
+      unlocked.push(l.key);
+      changed = true;
+      showToast(`⭐ ¡Nivel ${l.level}! Nuevo logro desbloqueado: "${l.icon} ${l.name}"`);
+    }
+  });
+
+  if(changed) saveState();
+}
+
 function generateDailyChallenges(){
   const t0 = todayISO();
   if(state.dailyChallenges && state.dailyChallenges.date === t0) return;
@@ -4346,6 +4424,24 @@ function renderProgressView(container){
     </div>`;
   }).join('');
   const allDone = (state.dailyChallenges.items||[]).every(i=>i.completed);
+
+  const unlockedSet = new Set((state.achievements && state.achievements.unlocked) || []);
+  const achievementsHtml = ACHIEVEMENT_POOL.map(a=>{
+    const done = unlockedSet.has(a.key);
+    return `<div class="challenge-row ${done?'done':''}">
+      <span class="challenge-check">${done?'✅':'🔒'}</span>
+      <span class="challenge-text">${a.icon} ${escapeHtml(a.desc)}</span>
+      <span class="challenge-reward">+${a.xp} XP</span>
+    </div>`;
+  }).join('');
+  const medalsHtml = STREAK_MEDALS.map(m=>{
+    const done = unlockedSet.has(m.key);
+    return `<div class="challenge-row ${done?'done':''}">
+      <span class="challenge-check">${done?'✅':'🔒'}</span>
+      <span class="challenge-text">🔥 ${m.days} días seguidos — "${escapeHtml(m.name)}"</span>
+      <span class="challenge-reward">+${m.xp} XP</span>
+    </div>`;
+  }).join('');
   const levelsHtml = [1,2,3,4,5].map(lvl=>{
     const min = (lvl-1)*100, max = lvl*100-1;
     const isCurrent = lvl === level;
@@ -4377,6 +4473,10 @@ function renderProgressView(container){
     <div class="task-group-label">⚡ Desafíos de hoy</div>
     ${items}
     ${allDone ? `<div class="challenge-bonus-banner">🔥 ¡Completaste los 3 desafíos de hoy! +70 XP</div>` : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">Completá los 3 para ganar un bono extra de +70 XP.</div>`}
+    <div class="task-group-label">🏆 Logros</div>
+    ${achievementsHtml}
+    <div class="task-group-label">🏅 Medallas de racha</div>
+    ${medalsHtml}
   `;
 }
 /** Widget compacto debajo de "Nueva lista", accede directo a Mi Progreso. */
@@ -4934,6 +5034,7 @@ function getAddPlaceholder(v){
 
 function render(){
   updateDailyChallengesProgress();
+  updateAchievements();
   renderAccountIndicator();
   renderSidebar();
   renderChallengesQuickAccess();
