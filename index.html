@@ -283,6 +283,12 @@
   .chart-card canvas{max-height:220px;}
   .stats-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
   .cal-mode-toggle{display:inline-flex;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:14px;}
+  @keyframes shimmer{0%{background-position:-200px 0;}100%{background-position:200px 0;}}
+  .skeleton-line{height:14px;border-radius:5px;margin-bottom:9px;
+    background:linear-gradient(90deg, var(--border) 25%, var(--card) 50%, var(--border) 75%);
+    background-size:200px 100%;animation:shimmer 1.3s infinite linear;}
+  .skeleton-task{pointer-events:none;}
+  .skeleton-task .skeleton-line{margin:2px 0 0;}
   .cal-mode-btn{background:none;border:none;padding:6px 16px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:7px;transition:background .12s,color .12s;}
   .cal-mode-btn.active{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);}
   .reading-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
@@ -574,7 +580,12 @@
     </div>
     <div id="account-indicator"></div>
     <div class="search-btn" onclick="openSearch()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg> Buscar <span class="kbd">/</span></div>
-    <div id="smart-views"></div>
+    <div id="smart-views">
+      <div class="skeleton-line" style="width:70%"></div>
+      <div class="skeleton-line" style="width:55%"></div>
+      <div class="skeleton-line" style="width:65%"></div>
+      <div class="skeleton-line" style="width:50%"></div>
+    </div>
 
     <div class="section-toggle" id="filters-toggle" onclick="toggleSection('filters')"><span>Filtros</span><span class="chev">⌄</span></div>
     <div class="section-body" id="quick-filters"></div>
@@ -610,7 +621,18 @@
           <button class="hbtn" onclick="toggleSuggestions()" title="Sugerencias" aria-label="Sugerencias"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10.47c.53.48.9 1.13 1 1.83V16h6v-1.7c.1-.7.47-1.35 1-1.83A6 6 0 0 0 12 2Z"/></svg></button>
         </div>
       </div>
-      <div id="day-progress-container"></div>
+      <div id="day-progress-container">
+        <div class="day-progress-card">
+          <div class="skeleton-line" style="width:40%;height:20px;margin-bottom:16px;"></div>
+          <div style="display:flex;gap:28px;margin-bottom:14px;">
+            <div class="skeleton-line" style="width:36px;height:30px;"></div>
+            <div class="skeleton-line" style="width:36px;height:30px;"></div>
+            <div class="skeleton-line" style="width:36px;height:30px;"></div>
+            <div class="skeleton-line" style="width:36px;height:30px;"></div>
+          </div>
+          <div class="skeleton-line" style="width:100%;height:10px;"></div>
+        </div>
+      </div>
       <div id="organize-day-container"></div>
     </div>
     <div id="reminder-banner-container"></div>
@@ -637,7 +659,11 @@
     </div>
     <div id="bulk-bar-container"></div>
     <div id="pending-counter" class="pending-counter"></div>
-    <div id="view-body"></div>
+    <div id="view-body">
+      <div class="task skeleton-task"><div class="skeleton-line" style="width:60%;height:16px;"></div></div>
+      <div class="task skeleton-task"><div class="skeleton-line" style="width:45%;height:16px;"></div></div>
+      <div class="task skeleton-task"><div class="skeleton-line" style="width:70%;height:16px;"></div></div>
+    </div>
   </div>
   <div class="suggestions-panel" id="suggestions-panel">
     <div class="suggestions-header">
