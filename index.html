@@ -2394,19 +2394,25 @@ function isThisWeek(dateStr){
   return d >= new Date(start.toDateString()) && d <= new Date(end.toDateString());
 }
 
+function isVideoList(list){ return list && normalize(list.name).includes('videos'); }
+/** Podcasts/Series/Videos son listas de "consumo" (no tareas con fecha real) — no deben aparecer en las vistas generales. */
+function isConsumptionList(listId){
+  const list = state.lists.find(l=>l.id===listId);
+  return isPodcastList(list) || isSeriesList(list) || isVideoList(list);
+}
 function getVisibleTasks(){
   const v = state.currentView;
   const t0 = todayISO();
-  if(v.type === 'today') return state.tasks.filter(t=> t.dueDate===t0 || isOverdue(t));
-  if(v.type === 'tomorrow') return state.tasks.filter(t=> t.dueDate===tomorrowISO());
-  if(v.type === 'important') return state.tasks.filter(t=> t.priority === 'alta');
-  if(v.type === 'favorites') return state.tasks.filter(t=> t.favorite);
+  if(v.type === 'today') return state.tasks.filter(t=> (t.dueDate===t0 || isOverdue(t)) && !isConsumptionList(t.listId));
+  if(v.type === 'tomorrow') return state.tasks.filter(t=> t.dueDate===tomorrowISO() && !isConsumptionList(t.listId));
+  if(v.type === 'important') return state.tasks.filter(t=> t.priority === 'alta' && !isConsumptionList(t.listId));
+  if(v.type === 'favorites') return state.tasks.filter(t=> t.favorite && !isConsumptionList(t.listId));
   if(v.type === 'filter'){
-    if(v.id === 'overdue') return state.tasks.filter(isOverdue);
-    if(v.id === 'week') return state.tasks.filter(t=>!t.done && isThisWeek(t.dueDate));
-    if(v.id === 'nodate') return state.tasks.filter(t=>!t.done && !t.dueDate);
-    if(v.id === 'pending') return state.tasks.filter(t=>!t.done);
-    if(v.id === 'completed') return state.tasks.filter(t=>t.done);
+    if(v.id === 'overdue') return state.tasks.filter(t=> isOverdue(t) && !isConsumptionList(t.listId));
+    if(v.id === 'week') return state.tasks.filter(t=>!t.done && isThisWeek(t.dueDate) && !isConsumptionList(t.listId));
+    if(v.id === 'nodate') return state.tasks.filter(t=>!t.done && !t.dueDate && !isConsumptionList(t.listId));
+    if(v.id === 'pending') return state.tasks.filter(t=>!t.done && !isConsumptionList(t.listId));
+    if(v.id === 'completed') return state.tasks.filter(t=>t.done && !isConsumptionList(t.listId));
   }
   if(v.type === 'list') return state.tasks.filter(t=> t.listId === v.id);
   return [];
@@ -3341,9 +3347,9 @@ const QUICK_FILTERS = [
 function renderSidebar(){
   const smart = document.getElementById('smart-views');
   const t0 = todayISO();
-  const todayCount = state.tasks.filter(t=>!t.done && (t.dueDate===t0 || isOverdue(t))).length;
-  const upcomingCount = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate > t0).length;
-  const impCount = state.tasks.filter(t=>!t.done && t.priority==='alta').length;
+  const todayCount = state.tasks.filter(t=>!t.done && (t.dueDate===t0 || isOverdue(t)) && !isConsumptionList(t.listId)).length;
+  const upcomingCount = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate > t0 && !isConsumptionList(t.listId)).length;
+  const impCount = state.tasks.filter(t=>!t.done && t.priority==='alta' && !isConsumptionList(t.listId)).length;
   const favCount = state.tasks.filter(t=>!t.done && t.favorite).length;
   const sl = state.settings ? state.settings.smartLists : {};
   smart.innerHTML = `
@@ -3470,22 +3476,22 @@ function renderDayProgress(){
   const tmr = tomorrowISO();
   const prioOrder = {alta:0, media:1, baja:2, null:3, undefined:3};
 
-  const todayTasks = state.tasks.filter(t=> t.dueDate===t0 || (t.done && t.completedAt===t0));
-  const pendingToday = state.tasks.filter(t=>!t.done && t.dueDate===t0);
+  const todayTasks = state.tasks.filter(t=> !isConsumptionList(t.listId) && (t.dueDate===t0 || (t.done && t.completedAt===t0)));
+  const pendingToday = state.tasks.filter(t=>!t.done && t.dueDate===t0 && !isConsumptionList(t.listId));
   const doneToday = todayTasks.filter(t=>t.done).length;
   const total = todayTasks.length;
   const pct = total ? Math.round((doneToday/total)*100) : 0;
   const highTodayCount = pendingToday.filter(t=>t.priority==='alta').length;
-  const overdueCount = state.tasks.filter(isOverdue).length;
-  const yesterdayCount = state.tasks.filter(t=>t.done && t.completedAt===yesterdayISO()).length;
-  const tomorrowCount = state.tasks.filter(t=>!t.done && t.dueDate===tmr).length;
+  const overdueCount = state.tasks.filter(t=>isOverdue(t) && !isConsumptionList(t.listId)).length;
+  const yesterdayCount = state.tasks.filter(t=>t.done && t.completedAt===yesterdayISO() && !isConsumptionList(t.listId)).length;
+  const tomorrowCount = state.tasks.filter(t=>!t.done && t.dueDate===tmr && !isConsumptionList(t.listId)).length;
   const streak = computeStreak();
 
   // Insights automáticos
   const mostImportant = [...pendingToday].sort((a,b)=>(prioOrder[a.priority]??3)-(prioOrder[b.priority]??3))[0];
-  const nextDeadline = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate>t0).sort((a,b)=>a.dueDate.localeCompare(b.dueDate))[0];
+  const nextDeadline = state.tasks.filter(t=>!t.done && t.dueDate && t.dueDate>t0 && !isConsumptionList(t.listId)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate))[0];
   const { startISO: weekStart, endISO: weekEnd } = getWeekRange(0);
-  const weekTasks = state.tasks.filter(t=>t.dueDate && t.dueDate>=weekStart && t.dueDate<=weekEnd);
+  const weekTasks = state.tasks.filter(t=>t.dueDate && t.dueDate>=weekStart && t.dueDate<=weekEnd && !isConsumptionList(t.listId));
   const weekPendingCount = weekTasks.filter(t=>!t.done).length;
   const weekDoneCount = weekTasks.filter(t=>t.done).length;
   const weekCompletionPct = weekTasks.length ? Math.round((weekDoneCount/weekTasks.length)*100) : null;
@@ -3600,9 +3606,9 @@ function renderMobileStatsStrip(){
   const el = document.getElementById('mobile-stats-strip');
   if(!el) return;
   const t0 = todayISO();
-  const pendingTotal = state.tasks.filter(t=>!t.done).length;
-  const overdueCount = state.tasks.filter(isOverdue).length;
-  const todayCount = state.tasks.filter(t=>!t.done && t.dueDate===t0).length;
+  const pendingTotal = state.tasks.filter(t=>!t.done && !isConsumptionList(t.listId)).length;
+  const overdueCount = state.tasks.filter(t=>isOverdue(t) && !isConsumptionList(t.listId)).length;
+  const todayCount = state.tasks.filter(t=>!t.done && t.dueDate===t0 && !isConsumptionList(t.listId)).length;
   el.innerHTML = `
     <span><strong>${pendingTotal}</strong> pendiente${pendingTotal===1?'':'s'}</span>
     <span class="overdue-num"><strong class="overdue-num">${overdueCount}</strong> vencida${overdueCount===1?'':'s'}</span>
