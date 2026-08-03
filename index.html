@@ -1754,7 +1754,10 @@ function extractSpotifyUrl(text){
   const m = text.match(/(https?:\/\/open\.spotify\.com\/(?:episode|show)\/[\w?=&%.-]+)/i);
   return m ? m[0] : null;
 }
+const spotifyFetchesInFlight = new Set();
 async function fetchSpotifyMetadata(taskId, url){
+  if(spotifyFetchesInFlight.has(taskId)) return;
+  spotifyFetchesInFlight.add(taskId);
   try{
     const resp = await fetch('https://open.spotify.com/oembed?url='+encodeURIComponent(url));
     if(!resp.ok) throw new Error('oEmbed de Spotify falló');
@@ -1774,6 +1777,8 @@ async function fetchSpotifyMetadata(taskId, url){
       t.spotifyTitle = /\/episode\//.test(url) ? '🎧 Episodio de Spotify' : /\/show\//.test(url) ? '🎧 Programa de Spotify' : '🎧 Spotify';
       saveState(); render();
     }
+  }finally{
+    spotifyFetchesInFlight.delete(taskId);
   }
 }
 
@@ -4621,9 +4626,16 @@ function renderPodcastModule(listId, container){
   const totalMinutes = listenedThisMonth.reduce((s,t)=>s+(t.estimatedMinutes||0),0);
   const hh = Math.floor(totalMinutes/60), mm = totalMinutes%60;
 
+  // Si algún episodio quedó sin título (por ejemplo, una consulta anterior falló), reintentamos
+  // en segundo plano en vez de dejarlo mostrando el link pelado para siempre.
+  episodes.forEach(t=>{
+    if(t.spotifyUrl && !t.spotifyTitle) fetchSpotifyMetadata(t.id, t.spotifyUrl);
+  });
+  const displayTitle = t => t.spotifyTitle || (t.spotifyUrl ? '🎧 Cargando episodio de Spotify...' : t.title);
+
   const episodeRow = (t, extra) => `
     <div class="reading-row" data-task-id="${t.id}">
-      <span class="reading-title" onclick="openEditModal('${t.id}')">${t.spotifyThumbnail ? `<img src="${t.spotifyThumbnail}" alt="" style="width:20px;height:20px;border-radius:4px;vertical-align:-5px;margin-right:6px;">` : ''}${escapeHtml(t.spotifyTitle || t.title)}</span>
+      <span class="reading-title" onclick="openEditModal('${t.id}')">${t.spotifyThumbnail ? `<img src="${t.spotifyThumbnail}" alt="" style="width:20px;height:20px;border-radius:4px;vertical-align:-5px;margin-right:6px;">` : ''}${escapeHtml(displayTitle(t))}</span>
       ${extra}
       <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
     </div>`;
@@ -4939,9 +4951,7 @@ function render(){
   const addWrap = document.getElementById('add-task-wrap');
   const body = document.getElementById('view-body');
   const counterEl = document.getElementById('pending-counter');
-
-  const pendingTotal = state.tasks.filter(t=>!t.done).length;
-  counterEl.innerText = `${pendingTotal} tarea${pendingTotal===1?'':'s'} pendiente${pendingTotal===1?'':'s'} en total`;
+  counterEl.innerText = '';
 
   const specialViews = {
     stats: ()=>{ titleEl.innerText='Estadísticas'; subEl.innerText='Tu actividad y productividad'; addWrap.style.display='none'; renderStats(body); },
@@ -5020,6 +5030,8 @@ function render(){
   else { const l = state.lists.find(l=>l.id===v.id); titleEl.innerText = l ? l.name : ''; subEl.innerText=''; }
 
   const tasks = getVisibleTasks();
+  const pendingHere = tasks.filter(t=>!t.done).length;
+  counterEl.innerText = `${pendingHere} tarea${pendingHere===1?'':'s'} pendiente${pendingHere===1?'':'s'} en total`;
   let pending = tasks.filter(t=>!t.done);
   const done = tasks.filter(t=>t.done)
     .sort((a,b)=> (b.completedAtTime||0) - (a.completedAtTime||0));
