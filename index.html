@@ -294,6 +294,15 @@
   .cal-mode-btn{background:none;border:none;padding:6px 16px;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:7px;transition:background .12s,color .12s;}
   .cal-mode-btn.active{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);}
   .reading-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .progress-hero-card{background:linear-gradient(135deg,var(--accent-bg),var(--card));border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .challenge-row{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;font-size:13.5px;}
+  .challenge-row.done{opacity:.6;}
+  .challenge-row.done .challenge-text{text-decoration:line-through;}
+  .challenge-text{flex:1;}
+  .challenge-reward{font-size:11.5px;color:var(--accent-strong);font-weight:600;flex-shrink:0;}
+  .challenge-bonus-banner{background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--radius);padding:12px;margin-top:10px;font-size:13px;font-weight:600;text-align:center;color:var(--accent-strong);}
+  .challenges-quick-widget{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;margin:8px 0;cursor:pointer;transition:border-color .12s;}
+  .challenges-quick-widget:hover{border-color:var(--border-strong);}
   .notes-board{display:flex;gap:14px;align-items:flex-start;overflow-x:auto;padding-bottom:10px;}
   .notes-column{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;width:250px;flex-shrink:0;min-height:80px;}
   .notes-column-header{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;margin-bottom:8px;padding:2px 4px;}
@@ -618,6 +627,7 @@
       <input type="text" id="new-list-name" placeholder="Nueva lista">
       <button onclick="addList()">+</button>
     </div>
+    <div id="challenges-quick-access"></div>
     <div class="search-btn import-btn" onclick="openImport()">⬆️ Importar tareas</div>
     <div class="sidebar-footer">Creado por Diego Lerner · diegolernerdl@gmail.com</div>
   </div>
@@ -1048,6 +1058,10 @@ function migrateState(){
     ];
   }
   if(!state.notes) state.notes = [];
+  if(!state.progress) state.progress = { xp:0, coins:0 };
+  if(typeof state.progress.xp !== 'number') state.progress.xp = 0;
+  if(typeof state.progress.coins !== 'number') state.progress.coins = 0;
+  generateDailyChallenges();
   state.notes.forEach(n=>{
     if(!n.tags) n.tags = [];
     if(!n.log) n.log = [];
@@ -3400,6 +3414,7 @@ function renderSidebar(){
       <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
       <div class="nav-item ${state.currentView.type==='cleanup'?'active':''}" onclick="selectView('cleanup', null)"><span class="nav-icon">🧹</span><span>Limpieza</span></div>
       <div class="nav-item ${state.currentView.type==='notes'?'active':''}" onclick="selectView('notes', null)"><span class="nav-icon">🗒️</span><span>Notas</span></div>
+      <div class="nav-item ${state.currentView.type==='progress'?'active':''}" onclick="selectView('progress', null)"><span class="nav-icon">⭐</span><span>Mi Progreso</span></div>
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
     </div>
     <div class="nav-item ${navMoreExpanded?'expanded':''}" id="nav-more-toggle" onclick="toggleNavMore()"><span class="nav-icon nav-more-chevron">⌄</span><span id="nav-more-label">${navMoreExpanded?'Menos':'Más'}</span></div>
@@ -4171,6 +4186,125 @@ function computeCleanupStats(){
 /* =====================================================================
    NOTAS — tablero estilo Trello, con historial que se va acumulando por tarjeta
    ===================================================================== */
+/* =====================================================================
+   DESAFÍOS DIARIOS — genera 3 por día, con XP y monedas
+   ===================================================================== */
+const CHALLENGE_POOL = [
+  { key:'complete3', icon:'✅', text:'Completar 3 tareas', xp:30, coins:15, check: s=>s.doneToday>=3 },
+  { key:'complete5', icon:'✅', text:'Completar 5 tareas', xp:50, coins:25, check: s=>s.doneToday>=5 },
+  { key:'complete10', icon:'✅', text:'Completar 10 tareas', xp:100, coins:50, check: s=>s.doneToday>=10 },
+  { key:'important', icon:'🎯', text:'Completar una tarea importante', xp:40, coins:20, check: s=>s.doneImportantToday>=1 },
+  { key:'noOverdue', icon:'📋', text:'No dejar tareas vencidas', xp:35, coins:15, check: s=>s.overdueCount===0 },
+  { key:'createFuture', icon:'📅', text:'Crear 3 tareas para próximos días', xp:30, coins:15, check: s=>s.futureCreatedToday>=3 },
+  { key:'inboxZero', icon:'📥', text:'Llegar a Inbox Cero', xp:100, coins:50, check: s=>s.pendingTodayCount===0 },
+  { key:'enterApp', icon:'🔥', text:'Entrar a la app hoy', xp:10, coins:5, check: ()=>true },
+  { key:'beforeNoon', icon:'🌅', text:'Completar una tarea antes del mediodía', xp:30, coins:15, check: s=>s.completedBeforeNoon }
+];
+/** Genera (una sola vez por día) los 3 desafíos de hoy, elegidos de forma estable según la fecha. */
+function generateDailyChallenges(){
+  const t0 = todayISO();
+  if(state.dailyChallenges && state.dailyChallenges.date === t0) return;
+  const seed = t0.split('-').reduce((a,c)=>a+parseInt(c,10), 0) * 7 + 13;
+  const pool = CHALLENGE_POOL.map(c=>c.key);
+  const picked = [];
+  let s = seed;
+  while(picked.length < 3 && pool.length){
+    s = (s*9301+49297) % 233280;
+    const idx = Math.floor((s/233280) * pool.length);
+    picked.push(pool.splice(idx,1)[0]);
+  }
+  state.dailyChallenges = { date: t0, bonusGiven:false, items: picked.map(key=>({ key, completed:false, rewarded:false })) };
+}
+function computeChallengeStats(){
+  const t0 = todayISO();
+  const doneTodayTasks = state.tasks.filter(t=>t.done && t.completedAt===t0 && !isConsumptionList(t.listId));
+  const futureCreatedToday = state.tasks.filter(t=>{
+    if(!t.createdAt) return false;
+    return toISO(new Date(t.createdAt))===t0 && t.dueDate && t.dueDate>t0;
+  }).length;
+  return {
+    doneToday: doneTodayTasks.length,
+    doneImportantToday: doneTodayTasks.filter(t=>t.priority==='alta').length,
+    overdueCount: state.tasks.filter(t=>isOverdue(t) && !isConsumptionList(t.listId)).length,
+    futureCreatedToday,
+    pendingTodayCount: state.tasks.filter(t=>!t.done && t.dueDate===t0 && !isConsumptionList(t.listId)).length,
+    completedBeforeNoon: doneTodayTasks.some(t=> t.completedAtTime && new Date(t.completedAtTime).getHours() < 12)
+  };
+}
+/** Revisa el progreso de los desafíos de hoy y otorga XP/monedas la primera vez que se completa cada uno. */
+function updateDailyChallengesProgress(){
+  if(!state.dailyChallenges || !state.dailyChallenges.items || !state.dailyChallenges.items.length) return;
+  const stats = computeChallengeStats();
+  let changed = false;
+  state.dailyChallenges.items.forEach(item=>{
+    const template = CHALLENGE_POOL.find(c=>c.key===item.key);
+    if(!template) return;
+    const isDone = !!template.check(stats);
+    if(isDone && !item.completed){
+      item.completed = true;
+      changed = true;
+      if(!item.rewarded){
+        item.rewarded = true;
+        state.progress.xp += template.xp;
+        state.progress.coins += template.coins;
+        showToast(`🎯 ¡Desafío completado! "${template.text}" +${template.xp} XP`);
+      }
+    }
+  });
+  const allDone = state.dailyChallenges.items.every(i=>i.completed);
+  if(allDone && !state.dailyChallenges.bonusGiven){
+    state.dailyChallenges.bonusGiven = true;
+    state.progress.xp += 70;
+    state.progress.coins += 50;
+    changed = true;
+    showToast('🔥 ¡Completaste los 3 desafíos de hoy! +70 XP +50 monedas');
+  }
+  if(changed) saveState();
+}
+function renderProgressView(container){
+  const p = state.progress;
+  const level = Math.floor(p.xp/100) + 1;
+  const xpIntoLevel = p.xp % 100;
+  const items = (state.dailyChallenges.items||[]).map(item=>{
+    const t = CHALLENGE_POOL.find(c=>c.key===item.key);
+    if(!t) return '';
+    return `<div class="challenge-row ${item.completed?'done':''}">
+      <span class="challenge-check">${item.completed?'✅':'⬜'}</span>
+      <span class="challenge-text">${t.icon} ${escapeHtml(t.text)}</span>
+      <span class="challenge-reward">+${t.xp} XP</span>
+    </div>`;
+  }).join('');
+  const allDone = (state.dailyChallenges.items||[]).every(i=>i.completed);
+  container.innerHTML = `
+    <div class="progress-hero-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:16px;font-weight:700;">⭐ Nivel ${level}</div>
+        <div style="font-size:12.5px;color:var(--text-muted);">💰 ${p.coins} monedas · ${p.xp} XP totales</div>
+      </div>
+      <div class="dpc-progress-wrap" style="margin-top:10px;"><div class="dpc-progress-bar" style="width:${xpIntoLevel}%;"></div></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${xpIntoLevel} / 100 XP para el próximo nivel</div>
+    </div>
+    <div class="task-group-label">🎯 Desafíos de hoy</div>
+    ${items}
+    ${allDone ? `<div class="challenge-bonus-banner">🔥 ¡Completaste los 3 desafíos de hoy! +70 XP · +50 monedas</div>` : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">Completá los 3 para ganar un bono extra de +70 XP y +50 monedas.</div>`}
+  `;
+}
+/** Widget compacto debajo de "Nueva lista", accede directo a Mi Progreso. */
+function renderChallengesQuickAccess(){
+  const el = document.getElementById('challenges-quick-access');
+  if(!el || !state.dailyChallenges) return;
+  const doneCount = state.dailyChallenges.items.filter(i=>i.completed).length;
+  const total = state.dailyChallenges.items.length;
+  const pct = total ? Math.round((doneCount/total)*100) : 0;
+  el.innerHTML = `
+    <div class="challenges-quick-widget" onclick="selectView('progress', null)">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;">
+        <span>🎯 Desafíos de hoy</span><span>${doneCount}/${total}</span>
+      </div>
+      <div class="dpc-progress-wrap" style="margin-top:5px;height:5px;"><div class="dpc-progress-bar" style="width:${pct}%;"></div></div>
+    </div>`;
+}
+
 function renderNotesBoard(container){
   container.innerHTML = `
     <div class="notes-board">
@@ -4702,8 +4836,10 @@ function getAddPlaceholder(v){
 }
 
 function render(){
+  updateDailyChallengesProgress();
   renderAccountIndicator();
   renderSidebar();
+  renderChallengesQuickAccess();
   renderDayProgress();
   renderOrganizeButton();
   renderMobileStatsStrip();
@@ -4736,6 +4872,7 @@ function render(){
     kanban: ()=>{ titleEl.innerText='Kanban'; subEl.innerText='Arrastrá tarjetas entre columnas para cambiar la prioridad'; addWrap.style.display='none'; renderKanban(body); },
     cleanup: ()=>{ titleEl.innerText='Limpieza'; subEl.innerText='Cosas para revisar y resolver'; addWrap.style.display='none'; renderCleanupCenter(body); },
     notes: ()=>{ titleEl.innerText='Notas'; subEl.innerText='Tablero de notas con historial'; addWrap.style.display='none'; renderNotesBoard(body); },
+    progress: ()=>{ titleEl.innerText='Mi Progreso'; subEl.innerText='Desafíos, XP y monedas'; addWrap.style.display='none'; renderProgressView(body); },
     agenda: ()=>{ titleEl.innerText='Agenda'; subEl.innerText='Vencidas y próximas, agrupadas por día'; addWrap.style.display='none'; renderAgenda(body); },
     upcoming: ()=>{ titleEl.innerText='Próximos'; subEl.innerText='Tareas con fecha, agrupadas por día'; addWrap.style.display='none'; renderUpcoming(body); }
   };
