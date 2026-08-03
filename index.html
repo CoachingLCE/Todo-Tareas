@@ -319,7 +319,8 @@
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
   .btn.primary:hover{background:var(--accent-strong);}
   .btn.danger{color:var(--high);border-color:var(--high-bg);}
-  .modal-row2{display:flex;gap:10px;}
+  .modal-row2{display:flex;gap:10px;flex-wrap:wrap;}
+  .modal-row2 > div{flex:1;min-width:110px;}
   .modal-row2>div{flex:1;}
   .recur-extra{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;}
   .reminder-item{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12.5px;}
@@ -967,6 +968,8 @@ function migrateState(){
     if(t.completedAtTime === undefined) t.completedAtTime = null;
     if(!t.updatedAt) t.updatedAt = t.createdAt || Date.now();
     if(t.dueTime === undefined) t.dueTime = null;
+    if(t.dueTimeEnd === undefined) t.dueTimeEnd = null;
+    if(t.location === undefined) t.location = null;
     if(typeof t.readingProgress !== 'number') t.readingProgress = 0;
     if(t.currentEpisodeInfo === undefined) t.currentEpisodeInfo = null;
     if(typeof t.favorite !== 'boolean') t.favorite = false;
@@ -1378,7 +1381,7 @@ function renderMedicalModule(listId, container){
     </div>
     ${upcoming.length ? `
       <div class="task-group-label">🏥 Próximos turnos</div>
-      ${upcoming.map(t=>turnRow(t, `<span style="font-size:11px;color:${isOverdue(t)?'var(--high)':'var(--text-muted)'};">${t.dueDate?'📅 '+t.dueDate:'sin fecha'}</span>`)).join('')}
+      ${upcoming.map(t=>turnRow(t, `<span style="font-size:11px;color:${isOverdue(t)?'var(--high)':'var(--text-muted)'};">${t.dueDate?'📅 '+t.dueDate:'sin fecha'}${t.dueTime?' 🕐 '+t.dueTime+(t.dueTimeEnd?'-'+t.dueTimeEnd:''):''}${t.location?' 📍 '+escapeHtml(t.location):''}</span>`)).join('')}
     ` : ''}
     ${history.length ? `
       <div class="task-group-label">📋 Historial</div>
@@ -1682,7 +1685,7 @@ function addTask(){
     recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null,
     youtubeUrl: extractYouTubeUrl(raw), youtubeTitle: null, youtubeThumbnail: null, youtubeAuthor: null, favorite: false,
     spotifyUrl: extractSpotifyUrl(raw), spotifyTitle: null, spotifyThumbnail: null, spotifyProvider: null,
-    dueTime: parsed.time || null
+    dueTime: parsed.time || null, dueTimeEnd: null, location: null
   };
   state.tasks.push(newTask);
   if(newTask.youtubeUrl) fetchYouTubeMetadata(newTask.id, newTask.youtubeUrl);
@@ -2625,7 +2628,13 @@ function openEditModal(taskId){
             <div class="field-label">Hora</div>
             <input type="time" id="edit-time" value="${t.dueTime||''}">
           </div>
+          <div>
+            <div class="field-label">Hasta</div>
+            <input type="time" id="edit-time-end" value="${t.dueTimeEnd||''}">
+          </div>
         </div>
+        <div class="field-label">📍 Ubicación</div>
+        <input type="text" id="edit-location" placeholder="Ej: Clínica Santa Fe, consultorio 4" value="${escapeHtml(t.location||'')}">
         <div class="field-label">Prioridad</div>
         <select id="edit-priority">
           <option value="" ${!t.priority?'selected':''}>Sin prioridad</option>
@@ -2725,6 +2734,8 @@ function saveEditModal(taskId){
   t.listId = document.getElementById('edit-list').value;
   t.dueDate = document.getElementById('edit-date').value || null;
   t.dueTime = document.getElementById('edit-time').value || null;
+  t.dueTimeEnd = document.getElementById('edit-time-end').value || null;
+  t.location = document.getElementById('edit-location').value.trim() || null;
   t.priority = document.getElementById('edit-priority').value || null;
   t.notes = document.getElementById('edit-notes').value;
   t.estimatedMinutes = parseInt(document.getElementById('edit-estimate').value) || null;
@@ -3742,7 +3753,8 @@ function renderTaskCard(t){
         <div class="task-meta">
           ${t.priority ? `<span class="badge ${t.priority==='alta'?'high':t.priority==='media'?'med':'low'}" onclick="cyclePriority('${t.id}')" style="cursor:pointer">${priorityIcon(t.priority)} ${priorityLabel(t.priority)}</span>` : ''}
           ${dateInfo ? `<span class="date-badge ${dateInfo.cls}">📅 ${dateInfo.text}</span>` : ''}
-          ${t.dueTime ? `<span class="date-badge">🕐 ${t.dueTime}</span>` : ''}
+          ${t.dueTime ? `<span class="date-badge">🕐 ${t.dueTime}${t.dueTimeEnd?' - '+t.dueTimeEnd:''}</span>` : ''}
+          ${t.location ? `<span class="date-badge">📍 ${escapeHtml(t.location)}</span>` : ''}
           ${t.estimatedMinutes ? `<span class="date-badge">⏱️ ${t.estimatedMinutes} min</span>` : ''}
           ${recurLabel ? `<span class="recur-badge">${recurLabel}</span>` : ''}
           ${state.currentView.type!=='list' ? `<span class="tag" style="color:${list?list.color:'#888'}">${list?escapeHtml(list.name):''}</span>` : ''}
