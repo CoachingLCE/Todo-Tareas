@@ -84,6 +84,8 @@
   .list-row.drag-over{box-shadow:inset 0 2px 0 var(--accent);}
   .list-icon-square.dragging{opacity:.4;}
   .list-icon-square.drag-over{box-shadow:inset 0 0 0 2px var(--accent);}
+  #quick-filters .nav-item.dragging{opacity:.4;}
+  #quick-filters .nav-item.drag-over{box-shadow:inset 0 2px 0 var(--accent);}
   .list-row-inner{display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .add-list{display:flex;gap:6px;padding:6px 2px;margin-top:10px;margin-bottom:6px;}
   .add-list input{flex:1;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 9px;font-size:13px;background:var(--card);color:var(--text);}
@@ -981,6 +983,7 @@ function migrateState(){
     showReminders: true,
     showSmartListToasts: true,
     dashboardDetailsOpen: true,
+    filterOrder: ['overdue','week','nodate','pending','completed'],
     calendarViewMode: null,
     smartLists: { leer:true, peliculas:true, series:true, podcasts:true, videos:true, importantes:true, hoy:true, completadas:true }
   };
@@ -1408,6 +1411,30 @@ function onListDragEnd(evt){
   evt.currentTarget.classList.remove('dragging');
   document.querySelectorAll('.list-row.drag-over, .list-icon-square.drag-over').forEach(el=>el.classList.remove('drag-over'));
   draggedListId = null;
+}
+
+let draggedFilterId = null;
+function onFilterDragStart(evt, id){ draggedFilterId = id; evt.currentTarget.classList.add('dragging'); }
+function onFilterDragOver(evt){ evt.preventDefault(); evt.currentTarget.classList.add('drag-over'); }
+function onFilterDragLeave(evt){ evt.currentTarget.classList.remove('drag-over'); }
+function onFilterDrop(evt, targetId){
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('drag-over');
+  if(!draggedFilterId || draggedFilterId === targetId) return;
+  const order = state.settings.filterOrder || QUICK_FILTERS.map(f=>f.id);
+  const fromIdx = order.indexOf(draggedFilterId);
+  const toIdx = order.indexOf(targetId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  const [moved] = order.splice(fromIdx, 1);
+  order.splice(toIdx, 0, moved);
+  state.settings.filterOrder = order;
+  draggedFilterId = null;
+  saveState(); render();
+}
+function onFilterDragEnd(evt){
+  evt.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('#quick-filters .nav-item.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  draggedFilterId = null;
 }
 
 /* =====================================================================
@@ -3421,7 +3448,6 @@ function renderSidebar(){
       <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
       <div class="nav-item ${state.currentView.type==='cleanup'?'active':''}" onclick="selectView('cleanup', null)"><span class="nav-icon">🧹</span><span>Limpieza</span></div>
       <div class="nav-item ${state.currentView.type==='notes'?'active':''}" onclick="selectView('notes', null)"><span class="nav-icon">🗒️</span><span>Notas</span></div>
-      <div class="nav-item ${state.currentView.type==='progress'?'active':''}" onclick="selectView('progress', null)"><span class="nav-icon">⭐</span><span>Mi Progreso</span></div>
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
     </div>
     <div class="nav-item ${navMoreExpanded?'expanded':''}" id="nav-more-toggle" onclick="toggleNavMore()"><span class="nav-icon nav-more-chevron">⌄</span><span id="nav-more-label">${navMoreExpanded?'Menos':'Más'}</span></div>
@@ -3431,9 +3457,14 @@ function renderSidebar(){
   document.getElementById('filters-toggle').classList.toggle('collapsed', filtersCollapsed);
   const qf = document.getElementById('quick-filters');
   qf.className = 'section-body' + (filtersCollapsed ? ' collapsed' : '');
-  qf.innerHTML = QUICK_FILTERS.filter(f=> f.id!=='completed' || sl.completadas!==false).map(f=>{
+  const filterOrder = state.settings.filterOrder || QUICK_FILTERS.map(f=>f.id);
+  const orderedFilters = [...QUICK_FILTERS].sort((a,b)=> filterOrder.indexOf(a.id) - filterOrder.indexOf(b.id));
+  qf.innerHTML = orderedFilters.filter(f=> f.id!=='completed' || sl.completadas!==false).map(f=>{
     const active = state.currentView.type==='filter' && state.currentView.id===f.id;
-    return `<div class="nav-item ${active?'active':''}" onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
+    return `<div class="nav-item ${active?'active':''}" draggable="true"
+      ondragstart="onFilterDragStart(event,'${f.id}')" ondragover="onFilterDragOver(event)"
+      ondragleave="onFilterDragLeave(event)" ondrop="onFilterDrop(event,'${f.id}')" ondragend="onFilterDragEnd(event)"
+      onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
   }).join('');
 
   const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 peliculas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos', '🛒 compras':'compras', '🏥 turnos medicos':'turnosmedicos' };
@@ -3529,6 +3560,7 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
 }
 
 function renderDayProgress(){
+  if(state.currentView.type === 'progress' || state.currentView.type === 'notes'){ document.getElementById('day-progress-container').innerHTML = ''; return; }
   if(state.currentView.type === 'list'){
     const currentListForSummary = state.lists.find(l=>l.id===state.currentView.id);
     if(isReadingList(currentListForSummary) || isPodcastList(currentListForSummary) || isMovieList(currentListForSummary) || isSeriesList(currentListForSummary) || isMedicalList(currentListForSummary)){ document.getElementById('day-progress-container').innerHTML = ''; return; }
@@ -4340,7 +4372,7 @@ function renderProgressView(container){
       <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${Math.min(p.loginStreak||0,30)} / 30 días</div>
       ${(p.loginStreak||0)>=30 ? `<div class="challenge-bonus-banner" style="margin-top:10px;">🏆 ¡30 días seguidos! Sos constante de verdad.</div>` : ''}
     </div>
-    <div class="task-group-label">🎯 Desafíos de hoy</div>
+    <div class="task-group-label">⚡ Desafíos de hoy</div>
     ${items}
     ${allDone ? `<div class="challenge-bonus-banner">🔥 ¡Completaste los 3 desafíos de hoy! +70 XP · +50 monedas</div>` : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">Completá los 3 para ganar un bono extra de +70 XP y +50 monedas.</div>`}
   `;
@@ -4355,7 +4387,7 @@ function renderChallengesQuickAccess(){
   el.innerHTML = `
     <div class="challenges-quick-widget" onclick="selectView('progress', null)">
       <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;">
-        <span>🎯 Desafíos de hoy</span><span>${doneCount}/${total}</span>
+        <span>⚡ Desafíos de hoy</span><span>${doneCount}/${total}</span>
       </div>
       <div class="dpc-progress-wrap" style="margin-top:5px;height:5px;"><div class="dpc-progress-bar" style="width:${pct}%;"></div></div>
     </div>`;
