@@ -900,6 +900,8 @@ function maybeShowWelcomeMessage(){
 /** Rellena campos nuevos en estados guardados por versiones anteriores, sin tocar los existentes. */
 function migrateState(){
   if(!state.currentView) state.currentView = {type:'list', id: state.lists[0] ? state.lists[0].id : null};
+  const migratingFromWeekView = state.currentView.type === 'week';
+  if(migratingFromWeekView) state.currentView = {type:'calendar', id:null};
   if(typeof state.totalCompletedEver !== 'number') state.totalCompletedEver = state.tasks.filter(t=>t.done).length;
   if(typeof state.darkMode !== 'boolean') state.darkMode = false;
   if(state.themeMode !== 'auto' && state.themeMode !== 'manual') state.themeMode = 'auto';
@@ -927,6 +929,7 @@ function migrateState(){
   Object.keys(defaultSettings.smartLists).forEach(key=>{
     if(state.settings.smartLists[key] === undefined) state.settings.smartLists[key] = true;
   });
+  if(migratingFromWeekView) state.settings.calendarViewMode = 'week';
   if(!state.focusSessions) state.focusSessions = [];
   if(typeof state.welcomeShown !== 'boolean'){
     // Si ya tenía tareas cargadas (usuario existente), no le mostramos el saludo de bienvenida.
@@ -3329,7 +3332,6 @@ function renderSidebar(){
       <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
       <div class="nav-item ${state.currentView.type==='cleanup'?'active':''}" onclick="selectView('cleanup', null)"><span class="nav-icon">🧹</span><span>Limpieza</span></div>
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
-      <div class="nav-item ${state.currentView.type==='week'?'active':''}" onclick="selectView('week', null)"><span class="nav-icon">${icon('calendarDays')}</span><span>Semana</span></div>
     </div>
     <div class="nav-item ${navMoreExpanded?'expanded':''}" id="nav-more-toggle" onclick="toggleNavMore()"><span class="nav-icon nav-more-chevron">⌄</span><span id="nav-more-label">${navMoreExpanded?'Menos':'Más'}</span></div>
   `;
