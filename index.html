@@ -2403,7 +2403,7 @@ function isConsumptionList(listId){
 function getVisibleTasks(){
   const v = state.currentView;
   const t0 = todayISO();
-  if(v.type === 'today') return state.tasks.filter(t=> (t.dueDate===t0 || isOverdue(t)) && !isConsumptionList(t.listId));
+  if(v.type === 'today') return state.tasks.filter(t=> (t.dueDate===t0 || isOverdue(t) || (t.done && t.completedAt===t0)) && !isConsumptionList(t.listId));
   if(v.type === 'tomorrow') return state.tasks.filter(t=> t.dueDate===tomorrowISO() && !isConsumptionList(t.listId));
   if(v.type === 'important') return state.tasks.filter(t=> t.priority === 'alta' && !isConsumptionList(t.listId));
   if(v.type === 'favorites') return state.tasks.filter(t=> t.favorite && !isConsumptionList(t.listId));
