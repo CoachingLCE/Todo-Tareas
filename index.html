@@ -3467,8 +3467,8 @@ function renderSidebar(){
       onclick="selectView('filter','${f.id}')"><span class="nav-icon">${icon(f.icon)}</span><span>${f.label}</span></div>`;
   }).join('');
 
-  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 peliculas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos', '🛒 compras':'compras', '🏥 turnos medicos':'turnosmedicos' };
-  const GRID_LIST_KEYS = ['leer','peliculas','series','podcasts','videos','compras','turnosmedicos'];
+  const SMART_LIST_NAME_TO_KEY = { '📚 leer':'leer', '🎬 peliculas':'peliculas', '📺 series':'series', '🎧 podcasts':'podcasts', '▶️ videos/youtube':'videos', '🛒 compras':'compras', '🏥 turnos medicos':'turnosmedicos', '👤 personal':'personal' };
+  const GRID_LIST_KEYS = ['leer','peliculas','series','podcasts','videos','compras','turnosmedicos','personal'];
   const listsCollapsed = !!(state.collapsedSections && state.collapsedSections.lists);
   document.getElementById('lists-toggle').classList.toggle('collapsed', listsCollapsed);
   const listsEl = document.getElementById('lists');
