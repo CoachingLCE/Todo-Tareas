@@ -2750,7 +2750,7 @@ function openEditModal(taskId){
         <h2>Editar tarea</h2>
         <div style="font-size:11.5px;color:var(--text-muted);margin:-10px 0 14px;">🕐 ${formatCreatedWhen(t)}</div>
         <div class="field-label">Título</div>
-        <input type="text" id="edit-title" value="${escapeHtml(t.title)}">
+        <input type="text" id="edit-title" value="${escapeHtml(t.title)}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEditModal('${t.id}');}">
         <div class="modal-row2">
           <div>
             <div class="field-label">Lista</div>
@@ -2770,7 +2770,7 @@ function openEditModal(taskId){
           </div>
         </div>
         <div class="field-label">📍 Ubicación</div>
-        <input type="text" id="edit-location" placeholder="Ej: Clínica Santa Fe, consultorio 4" value="${escapeHtml(t.location||'')}">
+        <input type="text" id="edit-location" placeholder="Ej: Clínica Santa Fe, consultorio 4" value="${escapeHtml(t.location||'')}" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEditModal('${t.id}');}">
         <div class="field-label">Prioridad</div>
         <select id="edit-priority">
           <option value="" ${!t.priority?'selected':''}>Sin prioridad</option>
@@ -2779,7 +2779,7 @@ function openEditModal(taskId){
           <option value="baja" ${t.priority==='baja'?'selected':''}>Baja</option>
         </select>
         <div class="field-label">Tiempo estimado (minutos)</div>
-        <input type="number" id="edit-estimate" min="0" value="${t.estimatedMinutes||''}" placeholder="Ej: 30">
+        <input type="number" id="edit-estimate" min="0" value="${t.estimatedMinutes||''}" placeholder="Ej: 30" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEditModal('${t.id}');}">
         <div class="field-label">Etiquetas</div>
         <div id="edit-tags-list">${t.tags.map(tag=>`<span class="tag">${escapeHtml(tag)} <span style="cursor:pointer" onclick="removeTag('${t.id}','${tag}');openEditModal('${t.id}')">✕</span></span>`).join(' ')}</div>
         <div class="add-tag-row" style="margin-top:8px;">
