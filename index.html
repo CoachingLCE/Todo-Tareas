@@ -4464,7 +4464,7 @@ function renderProgressView(container){
     ${levelsHtml}
     <div class="progress-hero-card" style="text-align:center;">
       <div style="font-size:28px;">🔥</div>
-      <div style="font-size:20px;font-weight:700;margin-top:2px;">${p.loginStreak||0} día${(p.loginStreak||0)===1?'':'s'} seguidos</div>
+      <div style="font-size:20px;font-weight:700;margin-top:2px;">${p.loginStreak||0} día${(p.loginStreak||0)===1?' seguido':'s seguidos'}</div>
       <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">entrando a la app</div>
       <div class="dpc-progress-wrap" style="margin-top:10px;"><div class="dpc-progress-bar" style="width:${Math.min(100, Math.round(((p.loginStreak||0)/30)*100))}%;"></div></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${Math.min(p.loginStreak||0,30)} / 30 días</div>
