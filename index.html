@@ -1799,12 +1799,12 @@ function addTask(){
   const finalDate = manualDateOverride ? (manualDate || null) : (parsed.date || manualDate || (isCollectionList ? null : todayISO()));
   const finalPriority = manualPrioOverride ? newPrio : (parsed.priority || newPrio);
   const finalTitle = (parsed.date || parsed.priority || parsed.time) ? parsed.clean : raw;
-  const maxOrder = Math.max(0, ...state.tasks.filter(t=>t.listId===targetListId).map(t=>t.order||0));
+  const minOrder = Math.min(0, ...state.tasks.filter(t=>t.listId===targetListId).map(t=>t.order||0));
 
   const newTask = {
     id: uid(), listId: targetListId, title: finalTitle || raw, done: false,
     priority: finalPriority, tags: [], subtasks: [], notes: '', dueDate: finalDate,
-    createdAt: Date.now(), completedAt: null, order: maxOrder+1,
+    createdAt: Date.now(), completedAt: null, order: minOrder-1,
     recurrence: null, reminderDaysBefore: null, reminders: [], estimatedMinutes: null,
     youtubeUrl: extractYouTubeUrl(raw), youtubeTitle: null, youtubeThumbnail: null, youtubeAuthor: null, favorite: false,
     spotifyUrl: extractSpotifyUrl(raw), spotifyTitle: null, spotifyThumbnail: null, spotifyProvider: null,
