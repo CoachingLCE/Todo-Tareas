@@ -4277,6 +4277,7 @@ function updateLoginStreak(){
     state.progress.loginStreak = 1;
   }
   state.progress.lastLoginDate = t0;
+  saveState(); // importante: guardar ya, sin depender de que el usuario haga otra acción
 }
 /* =====================================================================
    LOGROS, MEDALLAS DE RACHA Y NIVELES
