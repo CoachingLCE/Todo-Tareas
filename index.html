@@ -942,6 +942,7 @@ async function loadState(){
   render();
   attachSwipeHandlers();
   attachDashboardScrollListener();
+  attachPeriodicRemoteCheck();
   renderReminderBanner();
   maybeShowWelcomeMessage();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
@@ -3699,6 +3700,18 @@ function attachDashboardScrollListener(){
   if(!mainEl) return;
   mainEl.addEventListener('scroll', onMainScrollForHeader, { passive:true });
   dashboardScrollListenerAttached = true;
+}
+
+/**
+ * Revisa cada 45 segundos si hay datos más nuevos en la nube, aunque la pestaña nunca
+ * pierda el foco. Esto evita que una pestaña dejada abierta por días (con datos viejos
+ * en memoria) termine pisando cambios más recientes hechos desde otro dispositivo.
+ */
+let periodicRemoteCheckAttached = false;
+function attachPeriodicRemoteCheck(){
+  if(periodicRemoteCheckAttached) return;
+  periodicRemoteCheckAttached = true;
+  setInterval(()=>{ checkForRemoteUpdates(); }, 45000);
 }
 
 /** Tira compacta con pendientes/vencidas/hoy, siempre visible junto a la barra de agregar (mobile). */
