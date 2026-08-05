@@ -907,30 +907,33 @@ function tryRecoverLocalBackup(){
 
 async function loadState(){
   let serverState = null;
+  let serverFetchFailed = false;
   try{
     const res = await storageGet(STORAGE_KEY);
     if(res && res.value) serverState = JSON.parse(res.value);
-  }catch(e){ console.error('Error leyendo el estado del servidor', e); }
+  }catch(e){ console.error('Error leyendo el estado del servidor', e); serverFetchFailed = true; }
 
-  const backupState = tryRecoverLocalBackup();
-  // Usamos lo que tenga la marca de tiempo más reciente: si el respaldo local es más nuevo
-  // que lo que devolvió el servidor, significa que un guardado anterior falló y hay que
-  // recuperar esos cambios (y volver a intentar guardarlos en el servidor).
-  const serverTime = serverState && serverState.lastSavedAt || 0;
-  const backupTime = backupState && backupState.lastSavedAt || 0;
-
-  if(backupState && backupTime > serverTime){
-    state = backupState;
-    await saveState();
-    try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+  if(serverFetchFailed){
+    // La lectura del servidor falló de verdad (error de red/parseo): ahí sí, y SOLO ahí,
+    // recurrimos al respaldo local como salvavidas de emergencia.
+    const backupState = tryRecoverLocalBackup();
+    if(backupState){
+      state = backupState;
+      await saveState();
+      try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+    } else {
+      showToast('No se pudo conectar con el servidor. Revisá tu conexión antes de agregar algo nuevo.');
+      seedDefault();
+    }
   } else if(serverState){
+    // La lectura del servidor funcionó: confiamos en ese resultado tal cual viene,
+    // sin dejar que una copia local (que podría estar desactualizada) lo pise.
     state = serverState;
   } else {
-    // IMPORTANTE: si no llegó ningún dato del servidor (ya sea porque es un usuario
-    // realmente nuevo, o porque falló la lectura por un problema de red), NO guardamos
-    // nada todavía. Antes esto pisaba con una lista vacía cualquier dato real que hubiera
-    // en la planilla ante una falla transitoria de conexión — un guardado real solo debe
-    // ocurrir cuando el usuario efectivamente hace algo (agregar tarea, lista, etc.).
+    // IMPORTANTE: si no llegó ningún dato del servidor (usuario nuevo, o su fila no existe
+    // más), NO guardamos nada todavía. Un guardado real solo debe ocurrir cuando el usuario
+    // efectivamente hace algo (agregar tarea, lista, etc.) — así evitamos tanto pisar datos
+    // reales ante una falla transitoria, como "resucitar" datos borrados a propósito.
     seedDefault();
     if(currentUserEmail && isSheetsConfigured()){
       showToast('No se encontraron datos guardados para este mail. Si ya tenías tareas cargadas, revisá tu conexión antes de agregar algo nuevo (para no perder nada).');
