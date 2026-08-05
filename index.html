@@ -905,6 +905,13 @@ function tryRecoverLocalBackup(){
   }catch(e){ return null; }
 }
 
+/** Mide qué tan "rica" en datos es una versión del estado, para decidir cuál conservar. */
+function stateRichness(s){
+  if(!s || !Array.isArray(s.tasks)) return -1;
+  const doneCount = s.tasks.filter(t=>t.done).length;
+  return doneCount * 10000 + s.tasks.length;
+}
+
 async function loadState(){
   let serverState = null;
   let serverFetchFailed = false;
@@ -913,10 +920,11 @@ async function loadState(){
     if(res && res.value) serverState = JSON.parse(res.value);
   }catch(e){ console.error('Error leyendo el estado del servidor', e); serverFetchFailed = true; }
 
+  const backupState = tryRecoverLocalBackup();
+
   if(serverFetchFailed){
-    // La lectura del servidor falló de verdad (error de red/parseo): ahí sí, y SOLO ahí,
-    // recurrimos al respaldo local como salvavidas de emergencia.
-    const backupState = tryRecoverLocalBackup();
+    // La lectura del servidor falló de verdad (error de red/parseo): recurrimos al
+    // respaldo local como salvavidas de emergencia.
     if(backupState){
       state = backupState;
       await saveState();
@@ -926,9 +934,19 @@ async function loadState(){
       seedDefault();
     }
   } else if(serverState){
-    // La lectura del servidor funcionó: confiamos en ese resultado tal cual viene,
-    // sin dejar que una copia local (que podría estar desactualizada) lo pise.
-    state = serverState;
+    // La lectura del servidor funcionó, pero eso no garantiza que TODOS los guardados
+    // hayan llegado — si guardar en el servidor viene fallando (ver el panel de
+    // Sincronización), el respaldo local puede tener más información real (más tareas
+    // completadas) que lo que hay en la planilla. Comparamos por contenido, no por fecha
+    // (una fecha puede "mentir", la cantidad real de datos no).
+    if(backupState && stateRichness(backupState) > stateRichness(serverState)){
+      state = backupState;
+      await saveState();
+      try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+      showToast('Se recuperaron cambios que no habían llegado a guardarse en el servidor.');
+    } else {
+      state = serverState;
+    }
   } else {
     // IMPORTANTE: si no llegó ningún dato del servidor (usuario nuevo, o su fila no existe
     // más), NO guardamos nada todavía. Un guardado real solo debe ocurrir cuando el usuario
@@ -1139,7 +1157,9 @@ async function saveState(){
   }catch(e){
     console.error('Error guardando (intento 1)', e);
     try{
-      // Reintento simple por si fue un error transitorio del servidor
+      // Esperamos un poco antes de reintentar: si la falla fue por saturación momentánea
+      // (de la red o de la cuota de Google), reintentar al instante suele fallar igual.
+      await new Promise(r=>setTimeout(r, 1500));
       await storageSet(STORAGE_KEY, payload);
       logSyncEvent(true, 'Guardado OK (reintento)');
       try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
@@ -3714,7 +3734,7 @@ let periodicRemoteCheckAttached = false;
 function attachPeriodicRemoteCheck(){
   if(periodicRemoteCheckAttached) return;
   periodicRemoteCheckAttached = true;
-  setInterval(()=>{ checkForRemoteUpdates(); }, 45000);
+  setInterval(()=>{ checkForRemoteUpdates(); }, 300000); // cada 5 minutos, no cada 45s (evitar gastar la cuota de Google)
 }
 
 /** Tira compacta con pendientes/vencidas/hoy, siempre visible junto a la barra de agregar (mobile). */
