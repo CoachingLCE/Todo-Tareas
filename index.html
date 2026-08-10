@@ -741,7 +741,17 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.14.2';
+const APP_VERSION = '1.15.0';
+
+/** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
+const VERSION_NOTES = {
+  '1.15.0': [
+    '🔧 Arreglamos un problema de fondo que hacía que algunos guardados fallaran silenciosamente — ya no debería pasar más',
+    '🗒️ Nueva sección <strong>Notas</strong>, con tablero tipo Trello e historial',
+    '⚡ Nueva sección <strong>Desafíos diarios</strong>, con XP y niveles',
+    '📅 El <strong>Calendario</strong> ahora deja elegir entre vista Semana o Mes'
+  ]
+};
 
 /* =====================================================================
    ÍCONOS (SVG estilo Lucide, en vez de emojis, para una imagen más profesional)
@@ -966,6 +976,7 @@ async function loadState(){
   attachPeriodicRemoteCheck();
   renderReminderBanner();
   maybeShowWelcomeMessage();
+  maybeShowVersionNotes();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
 }
 
@@ -981,6 +992,36 @@ function maybeShowWelcomeMessage(){
     showToast('👋 ¡Bienvenido/a! Agregá tu primera tarea arriba para empezar.');
   }
   return true;
+}
+
+/** Muestra el resumen de novedades de la versión actual, una sola vez, si todavía no se vio. */
+function maybeShowVersionNotes(){
+  const notes = VERSION_NOTES[APP_VERSION];
+  if(!notes || state.lastSeenVersion === APP_VERSION) return;
+  const isFirstTimeEver = !state.lastSeenVersion;
+  const intro = isFirstTimeEver ? `
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.5;">
+      A partir de ahora, cada vez que actualicemos la app te vamos a mostrar acá un resumen corto
+      de qué cambió — así no tenés que preguntarme qué hay nuevo. Se ve una sola vez por versión,
+      y después no vuelve a aparecer hasta la próxima actualización.
+    </div>` : '';
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>🆕 Novedades</h2>
+        ${intro}
+        <div class="field-label" style="margin-top:0;">Qué cambió en esta versión</div>
+        <ul style="font-size:13.5px;line-height:1.8;color:var(--text-2);padding-left:20px;margin:0;">
+          ${notes.map(n=>`<li>${n}</li>`).join('')}
+        </ul>
+        <div class="modal-actions">
+          <div></div>
+          <div class="right"><button class="btn primary" onclick="closeModal()">Entendido</button></div>
+        </div>
+      </div>
+    </div>`;
+  state.lastSeenVersion = APP_VERSION;
+  saveState();
 }
 
 /** Rellena campos nuevos en estados guardados por versiones anteriores, sin tocar los existentes. */
