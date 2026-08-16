@@ -297,6 +297,16 @@
   .cal-mode-btn.active{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);}
   .reading-goal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
   .progress-hero-card{background:linear-gradient(135deg,var(--accent-bg),var(--card));border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-sm);}
+  .next-action-card{background:linear-gradient(135deg,var(--accent),var(--accent-strong));border-radius:var(--radius-lg);
+    padding:16px 18px;margin-top:14px;cursor:pointer;box-shadow:0 6px 20px -6px rgba(59,107,240,.45);color:#fff;
+    transition:transform .12s,box-shadow .12s;}
+  .next-action-card:hover{transform:translateY(-1px);box-shadow:0 8px 24px -6px rgba(59,107,240,.55);}
+  .next-action-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;opacity:.85;}
+  .next-action-title{font-size:17px;font-weight:700;margin-top:4px;line-height:1.3;}
+  .next-action-meta{font-size:12px;opacity:.85;margin-top:4px;}
+  .next-action-btn{margin-top:12px;background:#fff;color:var(--accent-strong);border:none;font-weight:700;
+    padding:8px 20px;border-radius:var(--radius-sm);font-size:12.5px;letter-spacing:.03em;}
+  .next-action-btn:hover{background:#f0f3ff;}
   .challenge-row{display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;font-size:13.5px;}
   .challenge-row.done{opacity:.6;}
   .challenge-row.done .challenge-text{text-decoration:line-through;}
@@ -1131,10 +1141,13 @@ function migrateState(){
   if(!state.progress) state.progress = { xp:0 };
   if(typeof state.progress.xp !== 'number') state.progress.xp = 0;
   if(typeof state.progress.loginStreak !== 'number') state.progress.loginStreak = 0;
+  if(typeof state.progress.bestLoginStreak !== 'number') state.progress.bestLoginStreak = state.progress.loginStreak;
+  if(!Array.isArray(state.progress.inboxZeroDates)) state.progress.inboxZeroDates = [];
   if(state.progress.lastLoginDate === undefined) state.progress.lastLoginDate = null;
   if(!state.achievements) state.achievements = { unlocked: [] };
   if(!state.achievements.unlocked) state.achievements.unlocked = [];
   generateDailyChallenges();
+  generateWeeklyMission();
   updateLoginStreak();
   state.notes.forEach(n=>{
     if(!n.tags) n.tags = [];
@@ -1848,10 +1861,11 @@ async function fetchSpotifyMetadata(taskId, url){
   }
 }
 
-function addTask(){
+/** Lee el input y arma el objeto de la nueva tarea, sin tocar el estado todavía (función pura). */
+function buildNewTaskFromInput(){
   const input = document.getElementById('new-task-title');
   const raw = input.value.trim();
-  if(!raw) return;
+  if(!raw) return null;
   const inSpecificList = state.currentView.type === 'list' && !!state.currentView.id;
   const listRule = inSpecificList ? null : detectSmartListOverride(raw);
   const targetListId = listRule
@@ -1875,18 +1889,33 @@ function addTask(){
     spotifyUrl: extractSpotifyUrl(raw), spotifyTitle: null, spotifyThumbnail: null, spotifyProvider: null,
     dueTime: parsed.time || null, dueTimeEnd: null, location: null
   };
+  return { newTask, listRule };
+}
+/** MUTACIÓN DE ESTADO PURA: agrega la tarea al array. No persiste ni renderiza. */
+function applyAddTask(newTask){
   state.tasks.push(newTask);
-  if(newTask.youtubeUrl) fetchYouTubeMetadata(newTask.id, newTask.youtubeUrl);
-  if(newTask.spotifyUrl) fetchSpotifyMetadata(newTask.id, newTask.spotifyUrl);
-  haptic(15);
-  justAddedTaskId = newTask.id;
-
-  input.value = '';
+}
+/** Limpia el formulario de "agregar tarea" (inputs, prioridad manual, chips). Solo toca el DOM/UI, no el estado de datos. */
+function resetAddTaskForm(){
+  document.getElementById('new-task-title').value = '';
   document.getElementById('new-task-date').value = '';
   newPrio = null; manualPrioOverride = false; manualDateOverride = false;
   document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
   updateMobilePrioDot();
   document.getElementById('smart-chips-preview').innerHTML = '';
+}
+/** ORQUESTA agregar una tarea: arma el objeto, lo persiste, dispara metadata externa, limpia el form y da feedback. */
+function addTask(){
+  const built = buildNewTaskFromInput();
+  if(!built) return;
+  const { newTask, listRule } = built;
+  applyAddTask(newTask);
+  if(newTask.youtubeUrl) fetchYouTubeMetadata(newTask.id, newTask.youtubeUrl);
+  if(newTask.spotifyUrl) fetchSpotifyMetadata(newTask.id, newTask.spotifyUrl);
+  haptic(15);
+  justAddedTaskId = newTask.id;
+
+  resetAddTaskForm();
   saveState(); render(); renderReminderBanner();
   if(listRule && state.settings.showSmartListToasts !== false) showToast(`Agregada a "${listRule.listName}"`);
   setTimeout(()=>{ justAddedTaskId = null; }, 400);
@@ -1962,9 +1991,9 @@ function handleCompleteClick(id, evt){
   setTimeout(()=> toggleTask(id), 280);
 }
 
-function toggleTask(id){
-  const t = state.tasks.find(t=>t.id===id);
-  if(!t) return;
+/** MUTACIÓN DE ESTADO PURA: marca la tarea como hecha/pendiente y genera la recurrencia si corresponde.
+ *  No persiste ni renderiza — eso lo hace quien la llama. Devuelve info para decidir el feedback. */
+function applyToggleTask(t){
   t.done = !t.done;
   if(t.done){
     t.completedAt = todayISO();
@@ -1980,18 +2009,32 @@ function toggleTask(id){
         reminders: [...(t.reminders||[])], estimatedMinutes: t.estimatedMinutes||null
       });
     }
-    const milestone = state.totalCompletedEver % 20 === 0;
-    playCompletionSound(state.totalCompletedEver);
-    saveState(); render(); renderReminderBanner();
-    if(milestone) showCelebration(state.totalCompletedEver);
-    return;
-  } else {
-    t.completedAt = null;
-    t.completedAtTime = null;
+    return { justCompleted:true, milestone: state.totalCompletedEver % 20 === 0 };
   }
-  saveState(); render(); renderReminderBanner();
+  t.completedAt = null;
+  t.completedAtTime = null;
+  return { justCompleted:false, milestone:false };
 }
 
+/** ORQUESTA el toggle completo: busca la tarea, aplica la mutación, persiste, renderiza y da el feedback. */
+function toggleTask(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  const result = applyToggleTask(t);
+  if(result.justCompleted){
+    playCompletionSound(state.totalCompletedEver);
+  }
+  saveState(); render(); renderReminderBanner();
+  if(result.justCompleted && result.milestone){
+    showCelebration(state.totalCompletedEver);
+  }
+}
+
+/** MUTACIÓN DE ESTADO PURA: saca la tarea de state.tasks. No persiste ni renderiza. */
+function applyDeleteTask(id){
+  state.tasks = state.tasks.filter(t=>t.id!==id);
+}
+/** ORQUESTA el borrado: confirma si hace falta, guarda para poder deshacer, anima, y recién ahí muta+persiste+renderiza. */
 function deleteTask(id){
   const idx = state.tasks.findIndex(t=>t.id===id);
   if(idx === -1) return;
@@ -2001,7 +2044,7 @@ function deleteTask(id){
   const el = document.querySelector(`[data-task-id="${id}"]`);
   if(el) el.classList.add('removing');
   setTimeout(()=>{
-    state.tasks = state.tasks.filter(t=>t.id!==id);
+    applyDeleteTask(id);
     saveState(); render();
   }, el ? 220 : 0);
   showToast('Tarea eliminada', undoDelete);
@@ -3630,6 +3673,52 @@ function pickSmartMessage(pendingToday, overdueCount, streak){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 
+/** Determina la "Próxima acción": la tarea que más conviene hacer ahora, en este orden de criterios:
+ *  1) vencida, 2) prioridad alta, 3) fecha de vencimiento más próxima, 4) marcada como importante/favorita,
+ *  5) sin fecha (último criterio, va al final). Excluye completadas y listas de "consumo"
+ *  (Podcasts/Series/Videos/etc), que no son acciones a tomar. Reutiliza isOverdue() ya existente. */
+function computeNextAction(){
+  const pending = state.tasks.filter(t=>!t.done && !isConsumptionList(t.listId));
+  if(pending.length===0) return null;
+  const scoreOf = t=>[
+    isOverdue(t) ? 0 : 1,          // 1) vencida primero
+    t.priority==='alta' ? 0 : 1,   // 2) prioridad alta
+    t.dueDate ? 0 : 1,             // 3a) tiene fecha (las sin fecha van al final, criterio 5)
+    t.dueDate || '9999-99-99',     // 3b) fecha más próxima primero
+    t.favorite ? 0 : 1             // 4) marcada como importante/favorita, como desempate
+  ];
+  const sorted = [...pending].sort((a,b)=>{
+    const sa = scoreOf(a), sb = scoreOf(b);
+    for(let i=0;i<sa.length;i++){
+      if(sa[i] < sb[i]) return -1;
+      if(sa[i] > sb[i]) return 1;
+    }
+    return (a.order||0)-(b.order||0);
+  });
+  return sorted[0];
+}
+/** Arma el HTML de la tarjeta "Próxima acción" para la vista Hoy. */
+function renderNextActionCard(){
+  const t = computeNextAction();
+  if(!t) return '';
+  const t0 = todayISO();
+  const overdue = isOverdue(t);
+  const badge = overdue ? '🔴' : (t.priority==='alta' ? '🔥' : '📅');
+  const bits = [];
+  if(t.priority==='alta') bits.push('Alta prioridad');
+  if(overdue) bits.push(`Venció el ${t.dueDate}`);
+  else if(t.dueDate===t0) bits.push('Vence hoy');
+  else if(t.dueDate) bits.push(`Vence el ${t.dueDate}`);
+  else bits.push('Sin fecha');
+  return `
+    <div class="next-action-card dpc-collapsible" onclick="openEditModal('${t.id}')">
+      <div class="next-action-label">PRÓXIMA ACCIÓN</div>
+      <div class="next-action-title">${badge} ${escapeHtml(t.title)}</div>
+      <div class="next-action-meta">${bits.join(' · ')}</div>
+      <button class="btn primary next-action-btn" onclick="event.stopPropagation(); openEditModal('${t.id}')">EMPEZAR</button>
+    </div>`;
+}
+
 function renderDayProgress(){
   if(state.currentView.type === 'progress' || state.currentView.type === 'notes'){ document.getElementById('day-progress-container').innerHTML = ''; return; }
   if(state.currentView.type === 'list'){
@@ -3695,6 +3784,7 @@ function renderDayProgress(){
         <span class="dpc-progress-pct">${pct}%</span>
       </div>` : ''}
       <div class="dpc-msg dpc-collapsible">${pickSmartMessage(pendingToday.length, overdueCount, streak)}</div>
+      ${state.currentView.type==='today' ? renderNextActionCard() : ''}
       ${tomorrowCount>0 ? `<div class="dpc-collapsible" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--text-2);">
         <span>${icon('calendarDays',14)} Para mañana ya tenés ${tomorrowCount} tarea${tomorrowCount===1?'':'s'} programada${tomorrowCount===1?'':'s'}.</span>
         <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="selectView('tomorrow', null)">Ver mañana</button>
@@ -4340,6 +4430,7 @@ function updateLoginStreak(){
   } else {
     state.progress.loginStreak = 1;
   }
+  state.progress.bestLoginStreak = Math.max(state.progress.bestLoginStreak||0, state.progress.loginStreak);
   state.progress.lastLoginDate = t0;
   saveState(); // importante: guardar ya, sin depender de que el usuario haga otra acción
 }
@@ -4488,6 +4579,79 @@ function updateDailyChallengesProgress(){
   }
   if(changed) saveState();
 }
+/** Plantilla de objetivos semanales. Cada uno define su propio target, recompensa en XP,
+ *  y cómo leer el progreso actual a partir de computeWeeklyMissionStats(). */
+const WEEKLY_MISSION_TEMPLATE = [
+  { key:'complete15', icon:'✅', text:'Completar 15 tareas', target:15, xp:150, progress: s=>s.weekDoneCount },
+  { key:'pomodoro3', icon:'🍅', text:'Hacer 3 sesiones de Pomodoro', target:3, xp:60, progress: s=>s.weekPomodoroCount },
+  { key:'beforeDue5', icon:'⏰', text:'Completar 5 tareas antes de su vencimiento', target:5, xp:100, progress: s=>s.weekBeforeDueCount },
+  { key:'inboxZeroOnce', icon:'📥', text:'Lograr Inbox Cero una vez', target:1, xp:80, progress: s=>s.weekInboxZeroCount }
+];
+/** Genera (una vez por semana) los objetivos de la Misión Semanal. */
+function generateWeeklyMission(){
+  const { startISO } = getWeekRange(0);
+  if(state.weeklyMission && state.weeklyMission.weekStart === startISO) return;
+  state.weeklyMission = { weekStart: startISO, items: WEEKLY_MISSION_TEMPLATE.map(m=>({ key:m.key, rewarded:false })) };
+}
+/** Reutiliza getWeekRange/focusSessions/isConsumptionList ya existentes para medir el progreso semanal. */
+function computeWeeklyMissionStats(){
+  const { startISO, endISO } = getWeekRange(0);
+  const doneThisWeek = state.tasks.filter(t=>t.done && t.completedAt && t.completedAt>=startISO && t.completedAt<=endISO && !isConsumptionList(t.listId));
+  const weekBeforeDueCount = doneThisWeek.filter(t=>t.dueDate && t.completedAt<=t.dueDate).length;
+  const weekPomodoroCount = (state.focusSessions||[]).filter(s=>s.date>=startISO && s.date<=endISO).length;
+  const weekInboxZeroCount = (state.progress.inboxZeroDates||[]).filter(d=>d>=startISO && d<=endISO).length;
+  return { weekDoneCount: doneThisWeek.length, weekPomodoroCount, weekBeforeDueCount, weekInboxZeroCount };
+}
+/** Registra la fecha de hoy la primera vez que se llega a "Inbox Cero" en el día (reutiliza computeChallengeStats). */
+function trackInboxZero(){
+  const stats = computeChallengeStats();
+  if(stats.pendingTodayCount === 0){
+    const t0 = todayISO();
+    if(!state.progress.inboxZeroDates.includes(t0)){
+      state.progress.inboxZeroDates.push(t0);
+      saveState();
+    }
+  }
+}
+/** Revisa el progreso semanal y otorga XP la primera vez que se alcanza cada objetivo. */
+function updateWeeklyMissionProgress(){
+  if(!state.weeklyMission) return;
+  const stats = computeWeeklyMissionStats();
+  let changed = false;
+  state.weeklyMission.items.forEach(item=>{
+    const template = WEEKLY_MISSION_TEMPLATE.find(m=>m.key===item.key);
+    if(!template) return;
+    const current = template.progress(stats);
+    if(current >= template.target && !item.rewarded){
+      item.rewarded = true;
+      changed = true;
+      state.progress.xp += template.xp;
+      showToast(`🎯 ¡Misión semanal completada! "${template.text}" +${template.xp} XP`);
+    }
+  });
+  if(changed) saveState();
+}
+/** Arma el HTML de la sección Misión Semanal para Mi Progreso. */
+function renderWeeklyMissionSection(){
+  const stats = computeWeeklyMissionStats();
+  const rows = (state.weeklyMission.items||[]).map(item=>{
+    const t = WEEKLY_MISSION_TEMPLATE.find(m=>m.key===item.key);
+    if(!t) return '';
+    const current = Math.min(t.progress(stats), t.target);
+    const pct = Math.round((current/t.target)*100);
+    const done = current >= t.target;
+    return `<div class="challenge-row ${done?'done':''}" style="display:block;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="challenge-text">${done?'✅':'🔲'} ${t.icon} ${escapeHtml(t.text)}</span>
+        <span class="challenge-reward">+${t.xp} XP</span>
+      </div>
+      <div class="dpc-progress-wrap" style="margin-top:7px;height:6px;"><div class="dpc-progress-bar" style="width:${pct}%;"></div></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${current} / ${t.target}</div>
+    </div>`;
+  }).join('');
+  return `<div class="task-group-label">🎯 Misión semanal</div>${rows}`;
+}
+
 function renderProgressView(container){
   const p = state.progress;
   const level = Math.floor(p.xp/100) + 1;
@@ -4544,10 +4708,12 @@ function renderProgressView(container){
       <div style="font-size:28px;">🔥</div>
       <div style="font-size:20px;font-weight:700;margin-top:2px;">${p.loginStreak||0} día${(p.loginStreak||0)===1?' seguido':'s seguidos'}</div>
       <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">entrando a la app</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">🏆 Mejor racha: <strong style="color:var(--text);">${p.bestLoginStreak||0}</strong> día${(p.bestLoginStreak||0)===1?'':'s'}</div>
       <div class="dpc-progress-wrap" style="margin-top:10px;"><div class="dpc-progress-bar" style="width:${Math.min(100, Math.round(((p.loginStreak||0)/30)*100))}%;"></div></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${Math.min(p.loginStreak||0,30)} / 30 días</div>
       ${(p.loginStreak||0)>=30 ? `<div class="challenge-bonus-banner" style="margin-top:10px;">🏆 ¡30 días seguidos! Sos constante de verdad.</div>` : ''}
     </div>
+    ${renderWeeklyMissionSection()}
     <div class="task-group-label">⚡ Desafíos de hoy</div>
     ${items}
     ${allDone ? `<div class="challenge-bonus-banner">🔥 ¡Completaste los 3 desafíos de hoy! +70 XP</div>` : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">Completá los 3 para ganar un bono extra de +70 XP.</div>`}
@@ -5112,6 +5278,8 @@ function getAddPlaceholder(v){
 
 function render(){
   updateDailyChallengesProgress();
+  updateWeeklyMissionProgress();
+  trackInboxZero();
   updateAchievements();
   renderAccountIndicator();
   renderSidebar();
