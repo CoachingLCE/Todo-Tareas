@@ -751,7 +751,7 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.16.0';
 
 /** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
 const VERSION_NOTES = {
@@ -760,6 +760,11 @@ const VERSION_NOTES = {
     '🗒️ Nueva sección <strong>Notas</strong>, con tablero tipo Trello e historial',
     '⚡ Nueva sección <strong>Desafíos diarios</strong>, con XP y niveles',
     '📅 El <strong>Calendario</strong> ahora deja elegir entre vista Semana o Mes'
+  ],
+  '1.16.0': [
+    '🎯 Nueva tarjeta <strong>Próxima acción</strong> en Mi día: la app te recomienda automáticamente qué tarea conviene hacer ahora',
+    '🏆 Nueva sección <strong>Misión semanal</strong> en Mi Progreso, con objetivos de la semana y su recompensa en XP',
+    '🥇 Ahora se registra tu <strong>mejor racha</strong> histórica, no solo la actual'
   ]
 };
 
