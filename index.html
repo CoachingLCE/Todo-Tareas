@@ -155,7 +155,17 @@
   .organize-suggestion-row:last-child{border-bottom:none;}
 
   .add-task-wrap{margin:22px 0 14px;}
-  .add-task{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;flex-wrap:wrap;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s;}
+  .add-task{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;flex-wrap:wrap;box-shadow:var(--shadow-sm);transition:border-color .15s,box-shadow .15s;position:relative;}
+  .specialty-dropdown{position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+    box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto;z-index:60;display:none;}
+  .specialty-option{padding:9px 14px;font-size:13px;cursor:pointer;}
+  .specialty-option:hover{background:var(--bg);}
+  .specialty-option-other{border-top:1px solid var(--border);color:var(--text-muted);}
+  .medical-turn-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border-strong);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;
+    color:transparent;transition:background .12s,border-color .12s,color .12s;}
+  .medical-turn-check:hover{border-color:var(--success);color:var(--success);}
   .add-task:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
   .add-task input[type=text]{flex:1;min-width:180px;border:none;outline:none;font-size:14.5px;background:transparent;color:var(--text);}
   .prio-select{display:flex;gap:5px;}
@@ -687,7 +697,9 @@
     <div class="add-task-wrap" id="add-task-wrap">
       <div id="mobile-stats-strip" class="mobile-stats-strip"></div>
       <div class="add-task">
-        <input type="text" id="new-task-title" placeholder="Agregar una tarea (probá escribir 'mañana' o 'urgente')" oninput="onTitleInput()" onkeydown="if(event.key==='Enter')addTask()">
+        <input type="text" id="new-task-title" placeholder="Agregar una tarea (probá escribir 'mañana' o 'urgente')" oninput="onTitleInput()" onkeydown="if(event.key==='Enter')addTask()"
+          onfocus="updateMedicalSpecialtyDropdown()" onblur="setTimeout(hideMedicalSpecialtyDropdown, 150)">
+        <div id="medical-specialty-dropdown" class="specialty-dropdown"></div>
         <div class="prio-select" id="new-prio">
           <button class="prio-btn high" onclick="setNewPrio('alta')" title="Alta"></button>
           <button class="prio-btn med" onclick="setNewPrio('media')" title="Media"></button>
@@ -751,7 +763,7 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.18.0';
 
 /** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
 const VERSION_NOTES = {
@@ -765,6 +777,16 @@ const VERSION_NOTES = {
     '🎯 Nueva tarjeta <strong>Próxima acción</strong> en Mi día: la app te recomienda automáticamente qué tarea conviene hacer ahora',
     '🏆 Nueva sección <strong>Misión semanal</strong> en Mi Progreso, con objetivos de la semana y su recompensa en XP',
     '🥇 Ahora se registra tu <strong>mejor racha</strong> histórica, no solo la actual'
+  ],
+  '1.17.0': [
+    '✓ Turnos Médicos: ahora podés marcar un turno como realizado con un toque — pasa solo al historial',
+    '🩺 Al completar un turno te pregunta si querés agendar el próximo, con la misma especialidad ya cargada',
+    '🔍 El campo de Turnos Médicos ahora sugiere especialidades mientras escribís'
+  ],
+  '1.18.0': [
+    '🪜 Los niveles ahora requieren cada vez más XP para subir (antes eran siempre 100 XP parejos)',
+    '📍 En Mi Progreso ahora se muestran solo los niveles cercanos al tuyo, en vez de siempre del 1 al 5',
+    'ⓘ Nuevo botón "¿Cómo funcionan los niveles?" con la explicación y la tabla completa de progresión'
   ]
 };
 
@@ -1570,6 +1592,7 @@ function renderMedicalModule(listId, container){
 
   const turnRow = (t, extra) => `
     <div class="reading-row" data-task-id="${t.id}">
+      ${!t.done ? `<span class="medical-turn-check" onclick="completeMedicalAppointment('${t.id}')" title="Marcar turno como realizado">✓</span>` : ''}
       <span class="reading-title" onclick="openEditModal('${t.id}')">${escapeHtml(t.title)}</span>
       ${extra}
       <button class="icon-btn" onclick="openTaskActionsSheet('${t.id}')" title="Más acciones">⋮</button>
@@ -1590,6 +1613,42 @@ function renderMedicalModule(listId, container){
     ` : ''}
   `;
 }
+/** Marca un turno como realizado reutilizando toggleTask() (así hereda XP, contadores, todo igual que cualquier
+ *  tarea completada), y a continuación pregunta si se quiere agendar el próximo turno de la misma especialidad. */
+function completeMedicalAppointment(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t || t.done) return;
+  const specialty = t.title;
+  const listId = t.listId;
+  toggleTask(id);
+  showAskRescheduleModal(specialty, listId);
+}
+function showAskRescheduleModal(specialty, listId){
+  const safeSpecialty = escapeHtml(specialty).replace(/'/g,"\\'");
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()" style="max-width:360px;">
+        <h2>¿Querés agendar tu próximo turno?</h2>
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Especialidad: <strong>${escapeHtml(specialty)}</strong></div>
+        <div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch;">
+          <button class="btn primary" style="width:100%;" onclick="closeModal(); openMedicalQuickAdd('${listId}','${safeSpecialty}')">Sí, agendar otro turno</button>
+          <button class="btn" style="width:100%;" onclick="closeModal()">No por ahora</button>
+        </div>
+      </div>
+    </div>`;
+}
+/** Va a la lista de Turnos Médicos y deja el campo de agregar listo con la misma especialidad, para cargar rápido. */
+function openMedicalQuickAdd(listId, specialty){
+  selectView('list', listId);
+  setTimeout(()=>{
+    const input = document.getElementById('new-task-title');
+    if(!input) return;
+    input.value = specialty;
+    input.focus();
+    onTitleInput();
+  }, 50);
+}
+
 function renderMedicalRecommendations(listId){
   return `
     <div class="task-group-label">Recomendaciones</div>
@@ -1776,6 +1835,43 @@ function onTitleInput(){
   const similar = findSimilarTask(result.clean || input.value);
   if(similar) html += `<div class="similar-warning">⚠️ Ya existe una tarea parecida: "${escapeHtml(similar.title)}"</div>`;
   preview.innerHTML = html;
+  updateMedicalSpecialtyDropdown();
+}
+
+/** Especialidades para el autocompletado del campo de Turnos Médicos. */
+const MEDICAL_SPECIALTIES = [
+  'Médico/a clínico/a','Pediatra','Ginecólogo/a','Obstetra','Cardiólogo/a','Dermatólogo/a',
+  'Endocrinólogo/a','Gastroenterólogo/a','Neurólogo/a','Oftalmólogo/a','Otorrinolaringólogo/a',
+  'Traumatólogo/a','Urólogo/a','Neumonólogo/a','Psiquiatra','Psicólogo/a','Nutricionista',
+  'Reumatólogo/a','Nefrólogo/a','Oncólogo/a','Infectólogo/a','Cirujano/a','Alergista',
+  'Odontólogo/a','Kinesiólogo/a'
+];
+/** Combobox integrado en el campo de agregar: solo aparece dentro de Turnos Médicos, filtra a medida que se escribe. */
+function updateMedicalSpecialtyDropdown(){
+  const dropdown = document.getElementById('medical-specialty-dropdown');
+  if(!dropdown) return;
+  const v = state.currentView;
+  const list = v.type==='list' ? state.lists.find(l=>l.id===v.id) : null;
+  if(!isMedicalList(list)){ dropdown.style.display='none'; return; }
+  const input = document.getElementById('new-task-title');
+  const query = normalize(input.value.trim());
+  const options = query ? MEDICAL_SPECIALTIES.filter(s=>normalize(s).includes(query)) : MEDICAL_SPECIALTIES;
+  const optionRows = options.slice(0,8).map(s=>
+    `<div class="specialty-option" onmousedown="selectMedicalSpecialty('${s.replace(/'/g,"\\'")}')">${escapeHtml(s)}</div>`
+  ).join('');
+  dropdown.innerHTML = optionRows + `<div class="specialty-option specialty-option-other" onmousedown="selectMedicalSpecialty('Otro')">✏️ Otro (escribir manualmente)</div>`;
+  dropdown.style.display = 'block';
+}
+function hideMedicalSpecialtyDropdown(){
+  const dropdown = document.getElementById('medical-specialty-dropdown');
+  if(dropdown) dropdown.style.display = 'none';
+}
+function selectMedicalSpecialty(name){
+  const input = document.getElementById('new-task-title');
+  if(name !== 'Otro') input.value = name;
+  hideMedicalSpecialtyDropdown();
+  input.focus();
+  onTitleInput();
 }
 
 /** Heurística local (sin IA) de similitud por superposición de palabras — instantánea y gratis. */
@@ -4502,7 +4598,7 @@ function updateAchievements(){
     }
   });
 
-  const level = Math.floor(state.progress.xp/100) + 1;
+  const level = computeLevelInfo(state.progress.xp).level;
   LEVEL_MILESTONES.forEach(l=>{
     if(unlocked.includes(l.key)) return;
     if(level >= l.level){
@@ -4657,10 +4753,54 @@ function renderWeeklyMissionSection(){
   return `<div class="task-group-label">🎯 Misión semanal</div>${rows}`;
 }
 
+/** XP necesaria para pasar del nivel n al n+1. Progresión ~20% más exigente en cada nivel
+ *  (100, 120, 145, 175, 210, ...), redondeada a múltiplos de 5 para que se vea prolijo. */
+function xpRequiredForLevel(n){
+  return Math.ceil(100 * Math.pow(1.2, n-1) / 5) * 5;
+}
+/** Dado el XP total acumulado, calcula en qué nivel está el usuario, cuánto XP lleva
+ *  dentro de ese nivel, y cuánto necesita en total para pasar al siguiente. */
+function computeLevelInfo(totalXp){
+  let level = 1, xpUsed = 0;
+  while(true){
+    const req = xpRequiredForLevel(level);
+    if(xpUsed + req > totalXp) break;
+    xpUsed += req;
+    level++;
+  }
+  return { level, xpIntoLevel: totalXp - xpUsed, xpNeededForNext: xpRequiredForLevel(level) };
+}
+/** Modal explicando cómo funciona la progresión de niveles, con una tabla de ejemplo. */
+function openLevelsInfoModal(){
+  const p = state.progress;
+  const info = computeLevelInfo(p.xp);
+  const rows = [];
+  for(let n=1; n<=info.level+3; n++){
+    rows.push(`<tr><td>${n} → ${n+1}</td><td style="text-align:right;">${xpRequiredForLevel(n)} XP</td></tr>`);
+  }
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>¿Cómo funcionan los niveles?</h2>
+        <div style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:14px;">
+          Cada vez que subís de nivel, necesitás más XP para alcanzar el siguiente. Los primeros niveles son
+          más rápidos, mientras que los niveles superiores requieren mayor constancia y actividad.
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="color:var(--text-muted);text-align:left;"><th>Nivel</th><th style="text-align:right;">XP necesaria para subir</th></tr></thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+        <div class="modal-actions">
+          <div></div>
+          <div class="right"><button class="btn primary" onclick="closeModal()">Entendido</button></div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderProgressView(container){
   const p = state.progress;
-  const level = Math.floor(p.xp/100) + 1;
-  const xpIntoLevel = p.xp % 100;
+  const { level, xpIntoLevel, xpNeededForNext } = computeLevelInfo(p.xp);
   const items = (state.dailyChallenges.items||[]).map(item=>{
     const t = CHALLENGE_POOL.find(c=>c.key===item.key);
     if(!t) return '';
@@ -4689,25 +4829,28 @@ function renderProgressView(container){
       <span class="challenge-reward">+${m.xp} XP</span>
     </div>`;
   }).join('');
-  const levelsHtml = [1,2,3,4,5].map(lvl=>{
-    const min = (lvl-1)*100, max = lvl*100-1;
+  const levelRange = [level-2, level-1, level, level+1, level+2].filter(lvl=>lvl>=1);
+  const levelsHtml = levelRange.map(lvl=>{
     const isCurrent = lvl === level;
     const isPast = lvl < level;
     return `<div class="level-row ${isCurrent?'current':''}">
-      <span class="level-badge">${isPast?'✅':isCurrent?'⭐':'🔒'} Nivel ${lvl}</span>
-      <span class="level-range">${min} – ${max} XP</span>
+      <span class="level-badge">${isPast?'✅':isCurrent?'⭐':'🔒'} Nivel ${lvl}${isCurrent?' ← Nivel actual':''}</span>
+      <span class="level-range">${xpRequiredForLevel(lvl)} XP para subir</span>
     </div>`;
   }).join('');
   container.innerHTML = `
     <div class="progress-hero-card">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:16px;font-weight:700;">⭐ Nivel ${level}</div>
-        <div style="font-size:12.5px;color:var(--text-muted);">⭐ ${p.xp} XP totales</div>
+        <div style="font-size:12.5px;color:var(--text-muted);">⭐ XP total acumulada: ${p.xp}</div>
       </div>
-      <div class="dpc-progress-wrap" style="margin-top:10px;"><div class="dpc-progress-bar" style="width:${xpIntoLevel}%;"></div></div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${xpIntoLevel} / 100 XP para el próximo nivel</div>
+      <div class="dpc-progress-wrap" style="margin-top:10px;"><div class="dpc-progress-bar" style="width:${Math.round((xpIntoLevel/xpNeededForNext)*100)}%;"></div></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:5px;">${xpIntoLevel} / ${xpNeededForNext} XP para alcanzar el Nivel ${level+1}</div>
     </div>
-    <div class="task-group-label">🪜 Niveles</div>
+    <div class="task-group-label" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>🪜 Niveles</span>
+      <span style="cursor:pointer;color:var(--accent-strong);font-weight:600;font-size:11.5px;text-transform:none;letter-spacing:0;" onclick="openLevelsInfoModal()">¿Cómo funcionan los niveles? ⓘ</span>
+    </div>
     ${levelsHtml}
     <div class="progress-hero-card" style="text-align:center;">
       <div style="font-size:28px;">🔥</div>
