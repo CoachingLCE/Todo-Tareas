@@ -1000,6 +1000,7 @@ async function loadState(){
     // efectivamente hace algo (agregar tarea, lista, etc.) — así evitamos tanto pisar datos
     // reales ante una falla transitoria, como "resucitar" datos borrados a propósito.
     seedDefault();
+    justSeededFromEmptyServer = true; // bloquea auto-guardados internos (ver updateLoginStreak)
     if(currentUserEmail && isSheetsConfigured()){
       showToast('No se encontraron datos guardados para este mail. Si ya tenías tareas cargadas, revisá tu conexión antes de agregar algo nuevo (para no perder nada).');
     }
@@ -1015,6 +1016,7 @@ async function loadState(){
   maybeShowWelcomeMessage();
   maybeShowVersionNotes();
   applyAutoThemeIfNeeded(); // no bloqueante: puede tardar por la geolocalización
+  justSeededFromEmptyServer = false; // ya protegió toda la carga inicial; de acá en más, guardar normal
 }
 
 /**
@@ -1058,7 +1060,7 @@ function maybeShowVersionNotes(){
       </div>
     </div>`;
   state.lastSeenVersion = APP_VERSION;
-  saveState();
+  if(!justSeededFromEmptyServer) saveState();
 }
 
 /** Rellena campos nuevos en estados guardados por versiones anteriores, sin tocar los existentes. */
@@ -1337,10 +1339,12 @@ function toggleTheme(){
 }
 async function applyAutoThemeIfNeeded(){
   if(state.themeMode !== 'auto') return;
+  const skipAutoSave = justSeededFromEmptyServer; // capturar ya: esto es async, puede terminar tarde
   const shouldBeDark = await computeAutoDarkMode();
   if(shouldBeDark !== state.darkMode){
     state.darkMode = shouldBeDark;
-    applyTheme(); saveState();
+    applyTheme();
+    if(!skipAutoSave) saveState();
     playThemeTransitionSound(shouldBeDark);
   }
 }
@@ -4533,7 +4537,7 @@ function updateLoginStreak(){
   }
   state.progress.bestLoginStreak = Math.max(state.progress.bestLoginStreak||0, state.progress.loginStreak);
   state.progress.lastLoginDate = t0;
-  saveState(); // importante: guardar ya, sin depender de que el usuario haga otra acción
+  if(!justSeededFromEmptyServer) saveState(); // importante: guardar ya, sin depender de que el usuario haga otra acción
 }
 /* =====================================================================
    LOGROS, MEDALLAS DE RACHA Y NIVELES
@@ -4608,7 +4612,7 @@ function updateAchievements(){
     }
   });
 
-  if(changed) saveState();
+  if(changed && !justSeededFromEmptyServer) saveState();
 }
 
 function generateDailyChallenges(){
@@ -4678,7 +4682,7 @@ function updateDailyChallengesProgress(){
     changed = true;
     showToast('🔥 ¡Completaste los 3 desafíos de hoy! +70 XP');
   }
-  if(changed) saveState();
+  if(changed && !justSeededFromEmptyServer) saveState();
 }
 /** Plantilla de objetivos semanales. Cada uno define su propio target, recompensa en XP,
  *  y cómo leer el progreso actual a partir de computeWeeklyMissionStats(). */
@@ -4710,7 +4714,7 @@ function trackInboxZero(){
     const t0 = todayISO();
     if(!state.progress.inboxZeroDates.includes(t0)){
       state.progress.inboxZeroDates.push(t0);
-      saveState();
+      if(!justSeededFromEmptyServer) saveState();
     }
   }
 }
@@ -4730,7 +4734,7 @@ function updateWeeklyMissionProgress(){
       showToast(`🎯 ¡Misión semanal completada! "${template.text}" +${template.xp} XP`);
     }
   });
-  if(changed) saveState();
+  if(changed && !justSeededFromEmptyServer) saveState();
 }
 /** Arma el HTML de la sección Misión Semanal para Mi Progreso. */
 function renderWeeklyMissionSection(){
@@ -5592,6 +5596,11 @@ document.addEventListener('keydown', (e)=>{
  * que una pestaña abierta hace rato pise con datos viejos lo que se hizo en otro lado.
  */
 let checkingRemoteUpdates = false;
+/** true justo después de que loadState() sembró una cuenta vacía porque el servidor no
+ *  devolvió datos. Mientras esté en true, ningún auto-guardado interno (como el de la racha)
+ *  debe escribir nada — si esa "cuenta vacía" fue un error transitorio, no queremos hacerlo
+ *  permanente guardándolo antes de que el usuario confirme una acción real. */
+let justSeededFromEmptyServer = false;
 async function checkForRemoteUpdates(){
   if(checkingRemoteUpdates || !currentUserEmail || !isSheetsConfigured()) return;
   checkingRemoteUpdates = true;
