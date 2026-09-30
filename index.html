@@ -934,16 +934,33 @@ function clearSavedEmail(){ try{ localStorage.removeItem(EMAIL_STORAGE_KEY); }ca
 
 async function sheetsGet(email){
   const url = APPS_SCRIPT_URL + '?action=get&email=' + encodeURIComponent(email);
-  const resp = await fetch(url);
+  // Timeout: si el Apps Script tarda demasiado (arranque en frio / cuota), abortamos en vez
+  // de dejar la app colgada esperando para siempre (por eso "no abria" a veces).
+  const ctrl = new AbortController();
+  const t = setTimeout(function(){ ctrl.abort(); }, 12000);
+  let resp;
+  try{ resp = await fetch(url, { signal: ctrl.signal }); }
+  finally{ clearTimeout(t); }
+  // Cualquier respuesta que NO sea un 200 real la tratamos como FALLA de servidor (no como
+  // "cuenta vacia"): asi loadState usa el respaldo local y NUNCA pisa la nube con datos vacios.
+  if(!resp.ok) throw new Error('El servidor respondio con error ' + resp.status);
   const data = await resp.json();
+  if(data && data.error) throw new Error('El servidor devolvio un error: ' + data.error);
   return data.value || null;
 }
 async function sheetsSet(email, value){
-  const resp = await fetch(APPS_SCRIPT_URL, {
-    method:'POST',
-    headers: {'Content-Type':'text/plain;charset=utf-8'}, // evita el preflight CORS con Apps Script
-    body: JSON.stringify({ action:'save', email, value })
-  });
+  const ctrl = new AbortController();
+  const t = setTimeout(function(){ ctrl.abort(); }, 15000);
+  let resp;
+  try{
+    resp = await fetch(APPS_SCRIPT_URL, {
+      method:'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'}, // evita el preflight CORS con Apps Script
+      body: JSON.stringify({ action:'save', email, value }),
+      signal: ctrl.signal
+    });
+  } finally{ clearTimeout(t); }
+  if(!resp.ok) throw new Error('El servidor respondio con error ' + resp.status);
   const data = await resp.json();
   if(!data.success) throw new Error('La planilla no confirmó el guardado');
 }
