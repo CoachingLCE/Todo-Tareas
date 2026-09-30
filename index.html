@@ -1225,6 +1225,16 @@ function maybeShowVersionNotesRender(){
 
 /** Rellena campos nuevos en estados guardados por versiones anteriores, sin tocar los existentes. */
 function migrateState(){
+  // Blindaje: garantizar que los arrays/objetos que el render usa directo SIEMPRE existan,
+  // asi un estado viejo o parcial (sin estas propiedades) no rompe la app al renderizar/abrir.
+  if(!state || typeof state !== 'object') state = {};
+  if(!Array.isArray(state.tasks)) state.tasks = [];
+  if(!Array.isArray(state.lists)) state.lists = [];
+  if(!Array.isArray(state.notes)) state.notes = [];
+  if(!Array.isArray(state.noteColumns)) state.noteColumns = [];
+  if(!Array.isArray(state.focusSessions)) state.focusSessions = [];
+  if(!state.achievements || typeof state.achievements !== 'object') state.achievements = {};
+  if(!Array.isArray(state.achievements.unlocked)) state.achievements.unlocked = [];
   if(!state.currentView) state.currentView = {type:'list', id: state.lists[0] ? state.lists[0].id : null};
   const migratingFromWeekView = state.currentView.type === 'week';
   if(migratingFromWeekView) state.currentView = {type:'calendar', id:null};
