@@ -506,6 +506,34 @@
   .novedades-ver-mas{display:block;margin-top:14px;background:none;border:none;padding:0;font-size:12px;color:var(--accent-strong);cursor:pointer;font-weight:600;}
   .novedades-ver-mas:hover{text-decoration:underline;}
 
+  /* ---------- Recorrido guiado ("Necesito ayuda") ---------- */
+  .tour-menu-backdrop{position:fixed;inset:0;z-index:910;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px;}
+  .tour-menu-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;width:320px;max-width:90vw;box-shadow:var(--shadow-lg);}
+  .tour-menu-title{font-size:13.5px;font-weight:700;margin:0 0 4px;}
+  .tour-menu-sub{font-size:12px;color:var(--text-2);margin:0 0 12px;line-height:1.5;}
+  .tour-menu-start{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;}
+  .tour-menu-label{font-size:10.5px;color:var(--text-muted);margin:0 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;}
+  .tour-menu-tareas{display:flex;flex-direction:column;gap:4px;}
+  .tour-menu-tarea{text-align:left;font-size:12px;color:var(--text-2);background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:7px 10px;cursor:pointer;}
+  .tour-menu-tarea:hover{color:var(--text);border-color:var(--border-strong);}
+
+  .tour-overlay-wrap{position:fixed;inset:0;z-index:915;}
+  .tour-dim{position:fixed;background:rgba(0,0,0,.7);transition:all .2s ease;}
+  .tour-dim-full{position:fixed;inset:0;background:rgba(0,0,0,.7);}
+  .tour-ring{position:fixed;border-radius:10px;box-shadow:0 0 0 2px var(--accent),0 0 0 6px rgba(59,107,240,.25);pointer-events:none;transition:all .2s ease;}
+  .tour-tooltip{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow-lg);}
+  .tour-tooltip-count{font-size:10.5px;color:var(--text-muted);margin:0 0 6px;font-weight:700;}
+  .tour-tooltip-title{font-size:13.5px;font-weight:700;margin:0 0 6px;}
+  .tour-tooltip-text{font-size:12px;color:var(--text-2);margin:0 0 12px;line-height:1.55;}
+  .tour-tooltip-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .tour-tooltip-salir{background:none;border:none;padding:0;font-size:12px;color:var(--text-muted);cursor:pointer;}
+  .tour-tooltip-atras{background:transparent;color:var(--text-2);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:12px;cursor:pointer;}
+  .tour-tooltip-siguiente{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+  @media (max-width:768px){
+    .tour-menu-backdrop{padding:12px;}
+    .tour-tooltip{max-width:calc(100vw - 28px);}
+  }
+
   /* ---------- Login ---------- */
   .login-overlay{position:fixed;inset:0;
     background:
@@ -667,11 +695,11 @@
     <div class="sidebar-brand">
       <h1>Mis tareas</h1>
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" aria-label="Modo oscuro"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></button>
-      <button class="theme-toggle" onclick="openSettingsPanel()" title="Configuración" aria-label="Configuración"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></button>
+      <button class="theme-toggle" onclick="openSettingsPanel()" title="Configuración" aria-label="Configuración" data-tour="tour-config"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></button>
     </div>
     <div id="account-indicator"></div>
-    <div class="search-btn" onclick="openSearch()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg> Buscar <span class="kbd">/</span></div>
-    <div id="smart-views">
+    <div class="search-btn" onclick="openSearch()" data-tour="tour-buscar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg> Buscar <span class="kbd">/</span></div>
+    <div id="smart-views" data-tour="tour-vistas">
       <div class="skeleton-line" style="width:70%"></div>
       <div class="skeleton-line" style="width:55%"></div>
       <div class="skeleton-line" style="width:65%"></div>
@@ -688,7 +716,7 @@
       <button onclick="addList()">+</button>
     </div>
     <div id="challenges-quick-access"></div>
-    <div class="search-btn import-btn" onclick="openImport()">⬆️ Importar tareas</div>
+    <div class="search-btn import-btn" onclick="openImport()" data-tour="tour-importar">⬆️ Importar tareas</div>
     <div class="sidebar-footer">Creado por Diego Lerner · diegolernerdl@gmail.com</div>
   </div>
   <div class="main">
@@ -704,7 +732,7 @@
         <div class="header-actions">
           <a class="hbtn" href="https://cafecito.app/ilce" target="_blank" rel="noopener" title="Invitar un cafecito" aria-label="Invitar un cafecito" style="display:flex;align-items:center;justify-content:center;text-decoration:none;">☕</a>
           <button class="hbtn" onclick="organizeMyDay()" title="Organizar mi día" aria-label="Organizar mi día">✨</button>
-          <button class="hbtn" onclick="openHelp()" title="Cómo funciona" aria-label="Cómo funciona"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 1.8-2.2 3.3M12 17h.01"/></svg></button>
+          <button class="hbtn" onclick="abrirMenuAyuda()" title="Cómo funciona" aria-label="Cómo funciona"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.7 1.2c0 1.5-2.2 1.8-2.2 3.3M12 17h.01"/></svg></button>
           <button class="hbtn" onclick="openSyncStatusPanel()" title="Sincronización" aria-label="Sincronización"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17.5 19H9a5 5 0 1 1 1.03-9.9A6 6 0 0 1 21 11.5 4.5 4.5 0 0 1 17.5 19Z"/></svg></button>
           
           <button class="hbtn" id="select-mode-btn" onclick="toggleSelectMode()" title="Selección múltiple" aria-label="Selección múltiple"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg></button>
@@ -775,6 +803,8 @@
 <div id="context-menu-container"></div>
 <div id="pomodoro-container"></div>
 <div id="floating-help-container"></div>
+<div id="tour-menu-container"></div>
+<div id="tour-overlay-container"></div>
 <script>
 /* =====================================================================
    ESTADO Y PERSISTENCIA
@@ -798,7 +828,7 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.22.0';
 const APP_UPDATED_AT = '2026-09-30'; // formato YYYY-MM-DD, para el botón de versión
 
 /** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
@@ -839,6 +869,9 @@ const VERSION_NOTES = {
   '1.21.0': [
     '💬 El botón de ayuda ahora dice "Necesito ayuda"',
     '🆕 El cartel de Novedades se rediseñó con el mismo estilo que las demás apps del ILCE, y ahora se pueden desplegar las versiones anteriores'
+  ],
+  '1.22.0': [
+    '🧭 "Necesito ayuda" ahora abre un recorrido guiado, igual al de las demás apps del ILCE: un botón "Comenzar recorrido" que va resaltando cada función real en la pantalla paso a paso, o una lista de tareas puntuales ("Quiero crear una tarea nueva", "Quiero ver el Kanban", etc.) que te lleva directo a esa función'
   ]
 };
 
@@ -2658,7 +2691,7 @@ function renderFloatingHelpWidget(){
   const [y, m, d] = APP_UPDATED_AT.split('-');
   el.innerHTML = `
     <div class="floating-help-widget">
-      <button class="floating-help-btn" onclick="openHelp()" title="¿Cómo funciona esta app?" aria-label="Necesito ayuda">
+      <button class="floating-help-btn" onclick="abrirMenuAyuda()" title="¿Cómo funciona esta app?" aria-label="Necesito ayuda">
         ${icon('helpCircle', 16)} Necesito ayuda
       </button>
       <div class="floating-version-badge" onclick="showVersionNotesAgain()" title="Ver las novedades de esta versión">
@@ -2677,6 +2710,181 @@ function showVersionNotesAgain(){
  *  desplegar "Ver novedades anteriores"). */
 function showVersionNotesAgainRender(){
   document.getElementById('modal-container').innerHTML = buildNovedadesHtml({ reabrirFn: 'showVersionNotesAgainRender' });
+}
+
+/* =====================================================================
+   RECORRIDO GUIADO ("❓ Necesito ayuda" / "Necesito ayuda"), con el mismo
+   estilo que ya usan Tuesday ILCE y Cronograma ILCE: un menú con
+   "Comenzar recorrido" + tareas puntuales, y un spotlight que resalta el
+   elemento real de la pantalla en cada paso (no un modal con texto suelto).
+   ===================================================================== */
+function expandirMasEnSidebar(){
+  if(!navMoreExpanded){ navMoreExpanded = true; renderSidebar(); }
+}
+const TOUR_PASOS = [
+  { id:'bienvenida', selector:null,
+    titulo:'¡Bienvenido a Mis tareas!',
+    texto:'Organizá tareas, notas, hábitos y más en un solo lugar, con IA para ayudarte en el camino. Vamos a recorrer las funciones principales.' },
+  { id:'agregar-tarea', selector:'#new-task-title',
+    titulo:'Agregar una tarea',
+    texto:'Escribí acá y presioná Enter. Probá escribir frases como "Llamar al cliente mañana urgente" — la app detecta sola la fecha y la prioridad, y te muestra chips antes de agregar.' },
+  { id:'buscar', selector:'[data-tour="tour-buscar"]',
+    titulo:'Buscar',
+    texto:'Buscá cualquier tarea por su nombre, en cualquier lista.' },
+  { id:'vistas', selector:'[data-tour="tour-vistas"]',
+    titulo:'Mi día y Próximos',
+    texto:'"Mi día" junta las tareas de hoy y las vencidas. "Próximos" muestra lo que viene más adelante.' },
+  { id:'mas-vistas', selector:'#nav-more-toggle', antes: expandirMasEnSidebar,
+    titulo:'Más vistas',
+    texto:'Tocá acá para ver Importantes, Favoritos, Calendario, Estadísticas, Kanban, Limpieza, Notas y Agenda.' },
+  { id:'kanban', selector:'[data-tour="tour-kanban"]', antes: expandirMasEnSidebar,
+    titulo:'Kanban',
+    texto:'Columnas por prioridad (Alta / Media / Baja) — arrastrá las tarjetas entre ellas.' },
+  { id:'listas', selector:'#lists', antes: expandirMasEnSidebar,
+    titulo:'Listas',
+    texto:'Organizá tus tareas en listas (Personal, Compras, etc.). Arrastrá para reordenarlas, o creá una lista nueva más abajo.' },
+  { id:'ia', selector:null,
+    titulo:'Inteligencia artificial',
+    texto:'Dentro de cada tarea (✎ Editar) hay acciones de IA: dividir en subtareas, sugerir prioridad, estimar tiempo, sugerir fecha límite o etiquetas, y resumir notas.' },
+  { id:'foco', selector:'#focus-mode-btn',
+    titulo:'Modo concentración',
+    texto:'Oculta las distracciones para enfocarte en pocas tareas a la vez.' },
+  { id:'pomodoro', selector:'#pomodoro-btn',
+    titulo:'Pomodoro',
+    texto:'Un temporizador de foco/descanso, para trabajar en bloques.' },
+  { id:'seleccion', selector:'#select-mode-btn',
+    titulo:'Selección múltiple',
+    texto:'Activá esto para elegir varias tareas a la vez y aplicarles una acción en conjunto.' },
+  { id:'config', selector:'[data-tour="tour-config"]',
+    titulo:'Configuración y modo oscuro',
+    texto:'Desde acá elegís qué vistas mostrar, y más. El ícono de la luna cambia entre modo claro y oscuro (por defecto, la app se pone oscura sola después del atardecer).' }
+];
+const TAREAS_AYUDA = [
+  { id:'crear-tarea', label:'Quiero crear una tarea nueva', pasoInicial:'agregar-tarea' },
+  { id:'ver-kanban', label:'Quiero ver el Kanban', pasoInicial:'kanban' },
+  { id:'ver-listas', label:'Quiero organizar mis listas', pasoInicial:'listas' },
+  { id:'usar-ia', label:'Quiero usar la Inteligencia Artificial', pasoInicial:'ia' },
+  { id:'modo-foco', label:'Quiero usar el modo concentración o Pomodoro', pasoInicial:'foco' },
+  { id:'configuracion', label:'Quiero cambiar la configuración', pasoInicial:'config' }
+];
+
+let tourMenuAbierto = false, tourActivo = false, tourPasoId = null, tourModoTarea = false;
+
+function abrirMenuAyuda(){
+  tourMenuAbierto = true;
+  renderTourMenu();
+}
+function cerrarMenuAyuda(){
+  tourMenuAbierto = false;
+  renderTourMenu();
+}
+function iniciarRecorridoCompleto(){
+  tourMenuAbierto = false; tourModoTarea = false; tourActivo = true; tourPasoId = TOUR_PASOS[0].id;
+  renderTourMenu();
+  mostrarPasoTour();
+  window.addEventListener('resize', ubicarPasoTour);
+  window.addEventListener('scroll', ubicarPasoTour, true);
+}
+function iniciarTareaAyuda(tareaId){
+  const tarea = TAREAS_AYUDA.find(t=>t.id===tareaId);
+  if(!tarea) return;
+  tourMenuAbierto = false; tourModoTarea = true; tourActivo = true; tourPasoId = tarea.pasoInicial;
+  renderTourMenu();
+  mostrarPasoTour();
+  window.addEventListener('resize', ubicarPasoTour);
+  window.addEventListener('scroll', ubicarPasoTour, true);
+}
+function tourIdx(){ return TOUR_PASOS.findIndex(p=>p.id===tourPasoId); }
+function tourSiguiente(){
+  if(tourModoTarea){ tourSalir(); return; }
+  const next = TOUR_PASOS[tourIdx()+1];
+  if(!next){ tourSalir(); return; }
+  tourPasoId = next.id;
+  mostrarPasoTour();
+}
+function tourAnterior(){
+  const prev = TOUR_PASOS[tourIdx()-1];
+  if(prev){ tourPasoId = prev.id; mostrarPasoTour(); }
+}
+function tourSalir(){
+  tourActivo = false; tourPasoId = null;
+  const el = document.getElementById('tour-overlay-container');
+  if(el) el.innerHTML = '';
+  window.removeEventListener('resize', ubicarPasoTour);
+  window.removeEventListener('scroll', ubicarPasoTour, true);
+}
+function mostrarPasoTour(){
+  const paso = TOUR_PASOS[tourIdx()];
+  if(paso && paso.antes) paso.antes();
+  ubicarPasoTour();
+}
+function ubicarPasoTour(){
+  if(!tourActivo) return;
+  renderTourOverlay(TOUR_PASOS[tourIdx()]);
+}
+function renderTourMenu(){
+  const el = document.getElementById('tour-menu-container');
+  if(!el) return;
+  if(!tourMenuAbierto){ el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="tour-menu-backdrop" onclick="cerrarMenuAyuda()">
+      <div class="tour-menu-box" onclick="event.stopPropagation()">
+        <h3 class="tour-menu-title">Te mostramos cómo funciona Mis tareas</h3>
+        <p class="tour-menu-sub">Vamos a recorrer juntos las principales funciones de la aplicación.</p>
+        <button class="tour-menu-start" onclick="iniciarRecorridoCompleto()">Comenzar recorrido</button>
+        <p class="tour-menu-label">O elegí una tarea puntual:</p>
+        <div class="tour-menu-tareas">
+          ${TAREAS_AYUDA.map(t => `<button class="tour-menu-tarea" onclick="iniciarTareaAyuda('${t.id}')">${t.label}</button>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+function renderTourOverlay(paso){
+  const el = document.getElementById('tour-overlay-container');
+  if(!el) return;
+  if(!paso){ el.innerHTML = ''; return; }
+  const idx = tourIdx(), total = TOUR_PASOS.length;
+  const esFinal = idx === total - 1;
+  const elemento = paso.selector ? document.querySelector(paso.selector) : null;
+  let rect = null;
+  if(elemento){
+    const r = elemento.getBoundingClientRect();
+    rect = { top:r.top, left:r.left, width:r.width, height:r.height };
+    elemento.scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+  const anchoTooltip = 320, altoAprox = 210;
+  let tooltipStyle;
+  if(rect){
+    const debajo = rect.top + rect.height + altoAprox < window.innerHeight;
+    const top = debajo ? rect.top + rect.height + 14 : Math.max(14, rect.top - 14 - altoAprox);
+    const left = Math.min(Math.max(14, rect.left), window.innerWidth - anchoTooltip - 14);
+    tooltipStyle = `top:${top}px;left:${left}px;width:${anchoTooltip}px;`;
+  } else {
+    tooltipStyle = `top:50%;left:50%;transform:translate(-50%,-50%);width:${anchoTooltip}px;`;
+  }
+  const zonas = rect ? `
+    <div class="tour-dim" style="top:0;left:0;right:0;height:${Math.max(0, rect.top - 6)}px;" onclick="tourSalir()"></div>
+    <div class="tour-dim" style="top:${rect.top - 6}px;left:0;width:${Math.max(0, rect.left - 6)}px;height:${rect.height + 12}px;" onclick="tourSalir()"></div>
+    <div class="tour-dim" style="top:${rect.top - 6}px;left:${rect.left + rect.width + 6}px;right:0;height:${rect.height + 12}px;" onclick="tourSalir()"></div>
+    <div class="tour-dim" style="top:${rect.top + rect.height + 6}px;left:0;right:0;bottom:0;" onclick="tourSalir()"></div>
+    <div class="tour-ring" style="top:${rect.top - 6}px;left:${rect.left - 6}px;width:${rect.width + 12}px;height:${rect.height + 12}px;"></div>
+  ` : `<div class="tour-dim-full" onclick="tourSalir()"></div>`;
+  el.innerHTML = `
+    <div class="tour-overlay-wrap">
+      ${zonas}
+      <div class="tour-tooltip" style="${tooltipStyle}">
+        ${!esFinal ? `<p class="tour-tooltip-count">${idx + 1} de ${total}</p>` : ''}
+        <h3 class="tour-tooltip-title">${paso.titulo}</h3>
+        <p class="tour-tooltip-text">${paso.texto}</p>
+        <div class="tour-tooltip-actions">
+          <button class="tour-tooltip-salir" onclick="tourSalir()">Salir</button>
+          <div style="display:flex;gap:6px;">
+            ${idx > 0 && !tourModoTarea ? `<button class="tour-tooltip-atras" onclick="tourAnterior()">← Atrás</button>` : ''}
+            <button class="tour-tooltip-siguiente" onclick="tourSiguiente()">${esFinal || tourModoTarea ? 'Listo' : 'Siguiente →'}</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function openHelp(){
@@ -3819,7 +4027,7 @@ function renderSidebar(){
       <div class="nav-item ${state.currentView.type==='favorites'?'active':''}" onclick="selectView('favorites', null)"><span class="nav-icon">⭐</span><span>Favoritos</span><span class="count">${favCount||''}</span></div>
       <div class="nav-item ${state.currentView.type==='calendar'?'active':''}" onclick="selectView('calendar', null)"><span class="nav-icon">${icon('calendar')}</span><span>Calendario</span></div>
       <div class="nav-item ${state.currentView.type==='stats'?'active':''}" onclick="selectView('stats', null)"><span class="nav-icon">${icon('barChart')}</span><span>Estadísticas</span></div>
-      <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
+      <div class="nav-item ${state.currentView.type==='kanban'?'active':''}" onclick="selectView('kanban', null)" data-tour="tour-kanban"><span class="nav-icon">${icon('grid')}</span><span>Kanban</span></div>
       <div class="nav-item ${state.currentView.type==='cleanup'?'active':''}" onclick="selectView('cleanup', null)"><span class="nav-icon">🧹</span><span>Limpieza</span></div>
       <div class="nav-item ${state.currentView.type==='notes'?'active':''}" onclick="selectView('notes', null)"><span class="nav-icon">🗒️</span><span>Notas</span></div>
       <div class="nav-item ${state.currentView.type==='agenda'?'active':''}" onclick="selectView('agenda', null)"><span class="nav-icon">${icon('list')}</span><span>Agenda</span></div>
