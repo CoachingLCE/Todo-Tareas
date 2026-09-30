@@ -472,6 +472,19 @@
   .pomodoro-mode{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
   .pomodoro-actions{display:flex;gap:6px;justify-content:center;}
 
+  /* ---------- Botón flotante de ayuda + versión (siempre visible) ---------- */
+  .floating-help-widget{position:fixed;right:18px;bottom:20px;z-index:850;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+  .floating-help-btn{display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));
+    color:#fff;border:none;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;
+    box-shadow:var(--shadow-lg);transition:transform .15s var(--ease);}
+  .floating-help-btn:hover{transform:translateY(-2px);}
+  .floating-version-badge{background:var(--card);color:var(--text-2);border:1px solid var(--border);border-radius:999px;
+    padding:4px 11px;font-size:10.5px;font-weight:600;box-shadow:var(--shadow-sm);cursor:pointer;white-space:nowrap;}
+  @media (max-width:768px){
+    .floating-help-widget{right:12px;bottom:96px;}
+    .floating-help-btn{padding:9px 14px;font-size:12.5px;}
+  }
+
   /* ---------- Login ---------- */
   .login-overlay{position:fixed;inset:0;
     background:
@@ -740,6 +753,7 @@
 <div id="toast-container"></div>
 <div id="context-menu-container"></div>
 <div id="pomodoro-container"></div>
+<div id="floating-help-container"></div>
 <script>
 /* =====================================================================
    ESTADO Y PERSISTENCIA
@@ -763,7 +777,8 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.18.1';
+const APP_VERSION = '1.19.0';
+const APP_UPDATED_AT = '2026-09-30'; // formato YYYY-MM-DD, para el botón de versión
 
 /** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
 const VERSION_NOTES = {
@@ -790,6 +805,10 @@ const VERSION_NOTES = {
   ],
   '1.18.1': [
     '🔄 La app ahora se refresca sola a las 23:59 de cada día, para evitar que una pestaña quede abierta por días con datos viejos'
+  ],
+  '1.19.0': [
+    '🛟 Varias mejoras de confiabilidad en el guardado: los respaldos locales ya no se mezclan entre mails en una compu compartida, se protegen mejor las notas y logros al recuperar datos, el refresco de las 23:59 ya no te interrumpe si estás escribiendo, y los turnos recurrentes (como Turnos Médicos) ya no pierden la ubicación, el horario ni el favorito al repetirse',
+    '❓ Nuevo botón flotante de ayuda, siempre a mano abajo a la derecha, con la versión actual'
   ]
 };
 
@@ -947,19 +966,37 @@ async function storageSet(key, value){
   return { key, value, shared:false };
 }
 
+/** Clave del respaldo local, separada por mail — así, en una compu/navegador compartido
+ *  entre dos personas, el respaldo de emergencia de una no puede "resucitar" por error
+ *  en la sesión de la otra (antes era una sola clave global para cualquier mail). */
+function backupKey(){
+  return STORAGE_KEY + '-backup' + (currentUserEmail ? ('-' + currentUserEmail) : '');
+}
+
 /** Si hay un respaldo local guardado (por una falla previa del servidor), lo devuelve. */
 function tryRecoverLocalBackup(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY + '-backup');
+    const raw = localStorage.getItem(backupKey());
     return raw ? JSON.parse(raw) : null;
   }catch(e){ return null; }
 }
 
-/** Mide qué tan "rica" en datos es una versión del estado, para decidir cuál conservar. */
+/** Mide qué tan "rica" en datos es una versión del estado, para decidir cuál conservar.
+ *  Antes solo miraba tareas (cantidad y completadas): una versión con más notas, subtareas
+ *  o logros pero la misma cantidad de tareas podía perderse por error al compararla contra
+ *  otra. Ahora suma todas las señales de datos reales, dándole más peso a las tareas (que
+ *  siguen siendo el dato principal) pero sin ignorar el resto. */
 function stateRichness(s){
   if(!s || !Array.isArray(s.tasks)) return -1;
   const doneCount = s.tasks.filter(t=>t.done).length;
-  return doneCount * 10000 + s.tasks.length;
+  const notesCount = Array.isArray(s.notes) ? s.notes.length : 0;
+  const notesLogCount = Array.isArray(s.notes) ? s.notes.reduce((sum,n)=> sum + (Array.isArray(n.log) ? n.log.length : 0), 0) : 0;
+  const subtasksCount = s.tasks.reduce((sum,t)=> sum + (Array.isArray(t.subtasks) ? t.subtasks.length : 0), 0);
+  const achievementsCount = (s.achievements && Array.isArray(s.achievements.unlocked)) ? s.achievements.unlocked.length : 0;
+  const focusSessionsCount = Array.isArray(s.focusSessions) ? s.focusSessions.length : 0;
+  const listsCount = Array.isArray(s.lists) ? s.lists.length : 0;
+  return doneCount * 100000 + s.tasks.length * 1000 + notesCount * 200 + notesLogCount * 20
+    + subtasksCount * 10 + achievementsCount * 5 + focusSessionsCount * 5 + listsCount;
 }
 
 async function loadState(){
@@ -978,7 +1015,7 @@ async function loadState(){
     if(backupState){
       state = backupState;
       await saveState();
-      try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+      try{ localStorage.removeItem(backupKey()); }catch(e){}
     } else {
       showToast('No se pudo conectar con el servidor. Revisá tu conexión antes de agregar algo nuevo.');
       seedDefault();
@@ -992,7 +1029,7 @@ async function loadState(){
     if(backupState && stateRichness(backupState) > stateRichness(serverState)){
       state = backupState;
       await saveState();
-      try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+      try{ localStorage.removeItem(backupKey()); }catch(e){}
       showToast('Se recuperaron cambios que no habían llegado a guardarse en el servidor.');
     } else {
       state = serverState;
@@ -1033,6 +1070,10 @@ function maybeShowWelcomeMessage(){
   if(state.tasks.length === 0){
     showToast('👋 ¡Bienvenido/a! Agregá tu primera tarea arriba para empezar.');
   }
+  // Se guarda solo: antes dependía de que maybeShowVersionNotes() guardara justo después
+  // (lo cual no siempre pasa, por ejemplo si ya se vieron las novedades de esta versión),
+  // así que a veces el saludo volvía a aparecer si se cerraba la pestaña antes de otra acción.
+  if(!justSeededFromEmptyServer) saveState();
   return true;
 }
 
@@ -1235,11 +1276,11 @@ async function saveState(){
   // Respaldo local INMEDIATO (síncrono, antes de esperar la red): así, si el usuario
   // recarga la página justo mientras el guardado en la nube todavía está en camino,
   // loadState() encuentra esta copia más nueva y no muestra una versión vieja.
-  try{ localStorage.setItem(STORAGE_KEY + '-backup', payload); }catch(e){}
+  try{ localStorage.setItem(backupKey(), payload); }catch(e){}
   try{
     await storageSet(STORAGE_KEY, payload);
     logSyncEvent(true, 'Guardado OK');
-    try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){} // confirmado en la nube, ya no hace falta
+    try{ localStorage.removeItem(backupKey()); }catch(e){} // confirmado en la nube, ya no hace falta
   }catch(e){
     console.error('Error guardando (intento 1)', e);
     try{
@@ -1248,7 +1289,7 @@ async function saveState(){
       await new Promise(r=>setTimeout(r, 1500));
       await storageSet(STORAGE_KEY, payload);
       logSyncEvent(true, 'Guardado OK (reintento)');
-      try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+      try{ localStorage.removeItem(backupKey()); }catch(e){}
     }catch(e2){
       console.error('Error guardando (intento 2, uso respaldo local)', e2);
       logSyncEvent(false, 'Falló el guardado en el servidor — respaldado localmente');
@@ -2114,7 +2155,11 @@ function applyToggleTask(t){
         tags: [...t.tags], subtasks: t.subtasks.map(s=>({id:uid(), title:s.title, done:false})),
         notes: t.notes, dueDate: nextDate, createdAt: Date.now(), completedAt: null, completedAtTime: null,
         order: t.order, recurrence: t.recurrence, reminderDaysBefore: t.reminderDaysBefore,
-        reminders: [...(t.reminders||[])], estimatedMinutes: t.estimatedMinutes||null
+        reminders: [...(t.reminders||[])], estimatedMinutes: t.estimatedMinutes||null,
+        // Antes se perdían al regenerarse (por ejemplo, un Turno Médico recurrente
+        // quedaba sin ubicación ni horario cada vez que se completaba uno).
+        dueTime: t.dueTime||null, dueTimeEnd: t.dueTimeEnd||null, location: t.location||null,
+        favorite: t.favorite||false, updatedAt: Date.now()
       });
     }
     return { justCompleted:true, milestone: state.totalCompletedEver % 20 === 0 };
@@ -2510,7 +2555,7 @@ async function restoreFromCloud(){
     // Importante: borramos también el respaldo local de este navegador. Si no,
     // la próxima vez que se abra la app, ese respaldo viejo podría "resucitar"
     // datos que ya no deberían existir.
-    try{ localStorage.removeItem(STORAGE_KEY + '-backup'); }catch(e){}
+    try{ localStorage.removeItem(backupKey()); }catch(e){}
     await saveState();
     render();
     closeModal();
@@ -2518,7 +2563,7 @@ async function restoreFromCloud(){
   }catch(e){ alert('No se pudo restaurar desde la nube. Probá de nuevo.'); }
 }
 function restoreFromLocalBackup(){
-  const raw = (()=>{ try{ return localStorage.getItem(STORAGE_KEY+'-backup'); }catch(e){ return null; } })();
+  const raw = (()=>{ try{ return localStorage.getItem(backupKey()); }catch(e){ return null; } })();
   if(!raw){ alert('No hay ninguna copia local de respaldo guardada.'); return; }
   if(!confirm('Esto va a reemplazar lo que ves ahora por la copia local de respaldo. ¿Continuar?')) return;
   state = JSON.parse(raw);
@@ -2531,12 +2576,45 @@ function restoreFromLocalBackup(){
 /** Borra la copia de emergencia guardada en este navegador. Útil cuando se borraron
     los datos de alguien a propósito y no queremos que esa copia los "resucite". */
 function clearLocalBackupNow(){
-  const raw = (()=>{ try{ return localStorage.getItem(STORAGE_KEY+'-backup'); }catch(e){ return null; } })();
+  const raw = (()=>{ try{ return localStorage.getItem(backupKey()); }catch(e){ return null; } })();
   if(!raw){ alert('Este navegador no tiene ninguna copia local guardada.'); return; }
   if(!confirm('¿Borrar la copia local de respaldo de este navegador? No se puede deshacer.')) return;
-  try{ localStorage.removeItem(STORAGE_KEY+'-backup'); }catch(e){}
+  try{ localStorage.removeItem(backupKey()); }catch(e){}
   showToast('Copia local borrada');
   closeModal();
+}
+
+/** Botón flotante de ayuda + versión, siempre visible en una esquina — no depende del
+ *  estado del usuario, así que se arma una sola vez al iniciar la app. */
+function renderFloatingHelpWidget(){
+  const el = document.getElementById('floating-help-container');
+  if(!el) return;
+  const [y, m, d] = APP_UPDATED_AT.split('-');
+  el.innerHTML = `
+    <div class="floating-help-widget">
+      <button class="floating-help-btn" onclick="openHelp()" title="¿Cómo funciona esta app?" aria-label="Ayuda">
+        ${icon('helpCircle', 16)} Ayuda
+      </button>
+      <div class="floating-version-badge" onclick="showVersionNotesAgain()" title="Ver las novedades de esta versión">
+        v${APP_VERSION} · Actualizado ${d}/${m}/${y}
+      </div>
+    </div>`;
+}
+/** Vuelve a mostrar el resumen de novedades de la versión actual (por si el usuario lo
+ *  cerró sin leerlo, o quiere revisarlo de nuevo desde el botón de versión). */
+function showVersionNotesAgain(){
+  const notes = VERSION_NOTES[APP_VERSION];
+  if(!notes){ showToast(`Versión ${APP_VERSION} — sin novedades para mostrar.`); return; }
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h2>🆕 Novedades — v${APP_VERSION}</h2>
+        <ul style="font-size:13.5px;line-height:1.8;color:var(--text-2);padding-left:20px;margin:0;">
+          ${notes.map(n=>`<li>${n}</li>`).join('')}
+        </ul>
+        <div class="modal-actions"><div></div><div class="right"><button class="btn primary" onclick="closeModal()">Cerrar</button></div></div>
+      </div>
+    </div>`;
 }
 
 function openHelp(){
@@ -3983,6 +4061,14 @@ function attachPeriodicRemoteCheck(){
 function checkForcedMidnightReload(){
   const now = new Date();
   if(now.getHours() === 23 && now.getMinutes() >= 59){
+    // No interrumpir si el usuario está escribiendo algo (título, nota, comentario) o tiene
+    // un modal abierto: antes el reload forzado podía borrar texto sin guardar. Se reintenta
+    // solo (este chequeo corre cada 1 minuto) apenas deje de estar escribiendo o cierre el modal.
+    const active = document.activeElement;
+    const estaEscribiendo = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)
+      && ((active.value || active.textContent || '').trim().length > 0);
+    const modalAbierto = document.getElementById('modal-container') && document.getElementById('modal-container').innerHTML.trim().length > 0;
+    if(estaEscribiendo || modalAbierto) return;
     location.reload();
   }
 }
@@ -5647,6 +5733,7 @@ function initApp(){
     loadState();
   }
 }
+renderFloatingHelpWidget();
 initApp();
 </script>
 </body>
