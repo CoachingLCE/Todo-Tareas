@@ -492,6 +492,20 @@
     .floating-help-btn{padding:9px 14px;font-size:12.5px;}
   }
 
+  /* ---------- Modal de "Novedades" (mismo estilo que el resto de las apps ILCE) ---------- */
+  .novedades-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .novedades-title{font-size:16px;font-weight:700;margin:0;}
+  .novedades-close{background:none;border:none;color:var(--text-muted);font-size:15px;cursor:pointer;line-height:1;padding:2px;}
+  .novedades-close:hover{color:var(--text);}
+  .novedades-intro{font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.5;}
+  .novedades-lista{display:flex;flex-direction:column;gap:18px;}
+  .novedades-version-label{font-size:13px;font-weight:700;color:var(--accent-strong);margin:0 0 6px;}
+  .novedades-cambios{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;}
+  .novedades-cambios li{display:flex;gap:8px;font-size:12.5px;line-height:1.55;color:var(--text-2);}
+  .novedades-dot{flex-shrink:0;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:6px;}
+  .novedades-ver-mas{display:block;margin-top:14px;background:none;border:none;padding:0;font-size:12px;color:var(--accent-strong);cursor:pointer;font-weight:600;}
+  .novedades-ver-mas:hover{text-decoration:underline;}
+
   /* ---------- Login ---------- */
   .login-overlay{position:fixed;inset:0;
     background:
@@ -784,7 +798,7 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.21.0';
 const APP_UPDATED_AT = '2026-09-30'; // formato YYYY-MM-DD, para el botón de versión
 
 /** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
@@ -821,6 +835,10 @@ const VERSION_NOTES = {
     '✕ El mensaje del día + "Próxima acción", y el aviso de recordatorios, ahora se pueden cerrar con una cruz — vuelven a aparecer solos al día siguiente',
     '✨ Esos avisos quedaron más chicos y prolijos',
     '↔️ Un poco más de separación entre el botón de Ayuda y el de la versión'
+  ],
+  '1.21.0': [
+    '💬 El botón de ayuda ahora dice "Necesito ayuda"',
+    '🆕 El cartel de Novedades se rediseñó con el mismo estilo que las demás apps del ILCE, y ahora se pueden desplegar las versiones anteriores'
   ]
 };
 
@@ -1089,34 +1107,70 @@ function maybeShowWelcomeMessage(){
   return true;
 }
 
+/** Compara dos versiones "x.y.z" — devuelve >0 si a>b, <0 si a<b, 0 si son iguales. */
+function compararVersiones(a, b){
+  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+  for(let i=0;i<Math.max(pa.length,pb.length);i++){
+    const d = (pa[i]||0) - (pb[i]||0);
+    if(d) return d;
+  }
+  return 0;
+}
+
+let novedadesVerAnteriores = false;
+
+/** Arma el HTML del modal de "Novedades", con el mismo estilo visual que ya usan las
+ *  demás apps ILCE (Tuesday, etc.): encabezado con título + cruz para cerrar arriba a la
+ *  derecha, versión en color de acento, viñetas con punto de color, y un link para
+ *  desplegar versiones anteriores en vez de mostrarlas todas de entrada. */
+function buildNovedadesHtml(opts){
+  opts = opts || {};
+  const versiones = Object.keys(VERSION_NOTES).sort(compararVersiones).reverse();
+  const actual = VERSION_NOTES[APP_VERSION] ? APP_VERSION : versiones[0];
+  const [y, m, d] = APP_UPDATED_AT.split('-');
+  const anteriores = versiones.filter(v => v !== actual);
+  const intro = opts.intro ? `<div class="novedades-intro">${opts.intro}</div>` : '';
+  const seccion = (v, fechaTxt) => `
+    <div class="novedades-version">
+      <p class="novedades-version-label">v${v}${fechaTxt ? ` · Actualizado ${fechaTxt}` : ''}</p>
+      <ul class="novedades-cambios">
+        ${(VERSION_NOTES[v] || []).map(n => `<li><span class="novedades-dot"></span><span>${n}</span></li>`).join('')}
+      </ul>
+    </div>`;
+  return `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="novedades-header">
+          <p class="novedades-title">🆕 Novedades de la app</p>
+          <button onclick="closeModal()" class="novedades-close" aria-label="Cerrar">✕</button>
+        </div>
+        ${intro}
+        <div class="novedades-lista">
+          ${seccion(actual, `${d}/${m}/${y}`)}
+          ${novedadesVerAnteriores ? anteriores.map(v => seccion(v, '')).join('') : ''}
+        </div>
+        ${!novedadesVerAnteriores && anteriores.length ? `<button onclick="novedadesVerAnteriores=true; ${opts.reabrirFn}();" class="novedades-ver-mas">Ver novedades anteriores →</button>` : ''}
+      </div>
+    </div>`;
+}
+
 /** Muestra el resumen de novedades de la versión actual, una sola vez, si todavía no se vio. */
 function maybeShowVersionNotes(){
   const notes = VERSION_NOTES[APP_VERSION];
   if(!notes || state.lastSeenVersion === APP_VERSION) return;
   const isFirstTimeEver = !state.lastSeenVersion;
-  const intro = isFirstTimeEver ? `
-    <div style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.5;">
-      A partir de ahora, cada vez que actualicemos la app te vamos a mostrar acá un resumen corto
-      de qué cambió — así no tenés que preguntarme qué hay nuevo. Se ve una sola vez por versión,
-      y después no vuelve a aparecer hasta la próxima actualización.
-    </div>` : '';
-  document.getElementById('modal-container').innerHTML = `
-    <div class="modal-overlay" onclick="closeModal(event)">
-      <div class="modal-box" onclick="event.stopPropagation()">
-        <h2>🆕 Novedades</h2>
-        ${intro}
-        <div class="field-label" style="margin-top:0;">Qué cambió en esta versión</div>
-        <ul style="font-size:13.5px;line-height:1.8;color:var(--text-2);padding-left:20px;margin:0;">
-          ${notes.map(n=>`<li>${n}</li>`).join('')}
-        </ul>
-        <div class="modal-actions">
-          <div></div>
-          <div class="right"><button class="btn primary" onclick="closeModal()">Entendido</button></div>
-        </div>
-      </div>
-    </div>`;
+  novedadesVerAnteriores = false;
+  const intro = isFirstTimeEver
+    ? 'A partir de ahora, cada vez que actualicemos la app te vamos a mostrar acá un resumen corto de qué cambió — así no tenés que preguntarme qué hay nuevo. Se ve una sola vez por versión, y después no vuelve a aparecer hasta la próxima actualización.'
+    : '';
+  document.getElementById('modal-container').innerHTML = buildNovedadesHtml({ intro, reabrirFn: 'maybeShowVersionNotesRender' });
   state.lastSeenVersion = APP_VERSION;
   if(!justSeededFromEmptyServer) saveState();
+}
+/** Re-renderiza el modal de novedades del primer arranque (por ejemplo al desplegar
+ *  "Ver novedades anteriores"), sin volver a tocar state.lastSeenVersion. */
+function maybeShowVersionNotesRender(){
+  document.getElementById('modal-container').innerHTML = buildNovedadesHtml({ reabrirFn: 'maybeShowVersionNotesRender' });
 }
 
 /** Rellena campos nuevos en estados guardados por versiones anteriores, sin tocar los existentes. */
@@ -2604,8 +2658,8 @@ function renderFloatingHelpWidget(){
   const [y, m, d] = APP_UPDATED_AT.split('-');
   el.innerHTML = `
     <div class="floating-help-widget">
-      <button class="floating-help-btn" onclick="openHelp()" title="¿Cómo funciona esta app?" aria-label="Ayuda">
-        ${icon('helpCircle', 16)} Ayuda
+      <button class="floating-help-btn" onclick="openHelp()" title="¿Cómo funciona esta app?" aria-label="Necesito ayuda">
+        ${icon('helpCircle', 16)} Necesito ayuda
       </button>
       <div class="floating-version-badge" onclick="showVersionNotesAgain()" title="Ver las novedades de esta versión">
         v${APP_VERSION} · Actualizado ${d}/${m}/${y}
@@ -2615,18 +2669,14 @@ function renderFloatingHelpWidget(){
 /** Vuelve a mostrar el resumen de novedades de la versión actual (por si el usuario lo
  *  cerró sin leerlo, o quiere revisarlo de nuevo desde el botón de versión). */
 function showVersionNotesAgain(){
-  const notes = VERSION_NOTES[APP_VERSION];
-  if(!notes){ showToast(`Versión ${APP_VERSION} — sin novedades para mostrar.`); return; }
-  document.getElementById('modal-container').innerHTML = `
-    <div class="modal-overlay" onclick="closeModal(event)">
-      <div class="modal-box" onclick="event.stopPropagation()">
-        <h2>🆕 Novedades — v${APP_VERSION}</h2>
-        <ul style="font-size:13.5px;line-height:1.8;color:var(--text-2);padding-left:20px;margin:0;">
-          ${notes.map(n=>`<li>${n}</li>`).join('')}
-        </ul>
-        <div class="modal-actions"><div></div><div class="right"><button class="btn primary" onclick="closeModal()">Cerrar</button></div></div>
-      </div>
-    </div>`;
+  if(!VERSION_NOTES[APP_VERSION]){ showToast(`Versión ${APP_VERSION} — sin novedades para mostrar.`); return; }
+  novedadesVerAnteriores = false;
+  document.getElementById('modal-container').innerHTML = buildNovedadesHtml({ reabrirFn: 'showVersionNotesAgainRender' });
+}
+/** Re-renderiza el modal de novedades abierto desde el botón de versión (por ejemplo al
+ *  desplegar "Ver novedades anteriores"). */
+function showVersionNotesAgainRender(){
+  document.getElementById('modal-container').innerHTML = buildNovedadesHtml({ reabrirFn: 'showVersionNotesAgainRender' });
 }
 
 function openHelp(){
