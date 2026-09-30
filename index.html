@@ -6013,7 +6013,10 @@ async function checkForRemoteUpdates(){
       const remote = JSON.parse(res.value);
       const remoteTime = remote.lastSavedAt || 0;
       const localTime = state.lastSavedAt || 0;
-      if(remoteTime > localTime){
+      // Solo adoptamos el remoto si es mas nuevo Y no tiene MENOS datos que lo local. Asi, si en
+      // otra pestaña/dispositivo quedo un guardado empobrecido (mas nuevo por fecha pero con menos
+      // tareas), no pisa lo bueno que tenemos aca. Misma filosofia que loadState (contenido > fecha).
+      if(remoteTime > localTime && stateRichness(remote) >= stateRichness(state)){
         state = remote;
         migrateState();
         render();
