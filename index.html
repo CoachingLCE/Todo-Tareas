@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mis tareas</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233b6bf0'/%3E%3Cpath d='M18 33 L28 43 L46 21' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
@@ -686,6 +687,73 @@
     .mobile-stats-strip strong{color:var(--text);font-size:12.5px;}
     .mobile-stats-strip .overdue-num{color:var(--high);}
   }
+
+  /* =====================================================================
+     AJUSTES PARA CELULAR (1.23.0) — todo dentro de @media: la computadora no cambia.
+     Antes faltaba la etiqueta viewport (el celular mostraba el diseño de escritorio achicado) y, cuando se
+     probó agregarla (08/08), el diseño móvil —que nunca se había visto— tenía estos desajustes.
+     ===================================================================== */
+  .sidebar-version{margin-top:6px;font-size:11.5px;color:var(--text-muted);cursor:pointer;text-decoration:underline;}
+  @media (max-width: 768px){
+    .app{height:100vh;height:100dvh;}
+    .main{padding:0 10px calc(150px + env(safe-area-inset-bottom));}
+
+    /* Cabecera en dos filas (menú + título / acciones) y fija SOLO la cabecera: antes quedaba fija también la tarjeta
+       del resumen del día (más de la mitad de la pantalla). */
+    .top-header{display:contents;}
+    .header-row{position:sticky;top:0;z-index:20;background:var(--bg);flex-wrap:wrap;row-gap:6px;align-items:center;
+      margin:0 -10px;padding:calc(10px + env(safe-area-inset-top, 0px)) 10px 8px;}
+    .header-row > div:first-child{flex:1 1 100%;min-width:0;align-items:center !important;}
+    .header-row > div:first-child > div:last-child{min-width:0;flex:1;}
+    .main-header{font-size:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .header-actions{flex:1 1 100%;display:flex;gap:4px;justify-content:space-between;}
+    .hbtn{flex:1 1 0;min-width:0;max-width:52px;width:auto;height:40px;padding:0;display:flex;align-items:center;justify-content:center;}
+    #day-progress-container{margin-top:6px;}
+    /* El resumen del día solo en "Mi día" */
+    body:not([data-view="today"]) .day-progress-card{display:none;}
+
+    /* Resumen del día más compacto */
+    .dpc-hero-item .label{font-size:11px;}
+    .badge, .tag, .date-badge{font-size:11px;}
+
+    /* Tareas: solo el menú de tres puntos (la regla de abajo ganaba por especificidad y mostraba ✎ y ✕ amontonados) */
+    .task-actions .desktop-only-action{display:none !important;}
+    .task{padding-right:46px;}
+    .checkbox{position:relative;}
+    .checkbox::after{content:'';position:absolute;top:-8px;right:-8px;bottom:-8px;left:-8px;}
+
+    /* Barra de agregar: el botón queda redondo con un "+" y la fecha como ícono de calendario */
+    .add-task-submit{font-size:0 !important;position:relative;}
+    .add-task-submit::before{content:'+';font-size:26px;line-height:1;font-weight:400;position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;}
+    .add-task input[type=date]{order:2;width:36px;height:36px;padding:0;border:none;border-radius:50%;flex-shrink:0;position:relative;
+      -webkit-appearance:none;appearance:none;color:transparent;-webkit-text-fill-color:transparent;
+      background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238a8880' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E") center/20px no-repeat;}
+    .add-task input[type=date]::-webkit-datetime-edit,
+    .add-task input[type=date]::-webkit-date-and-time-value{display:none;}
+    .add-task input[type=date]::-webkit-calendar-picker-indicator{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+    .add-task input[type=date].has-date{background-color:var(--accent-bg);box-shadow:inset 0 0 0 2px var(--accent);}
+
+    /* Botón de ayuda: solo el ícono; la versión se ve en el menú lateral; nada de esto tapa el menú ni las ventanas */
+    .floating-help-widget{right:12px;bottom:calc(88px + env(safe-area-inset-bottom));gap:0;}
+    .floating-help-btn{width:44px;height:44px;padding:0;font-size:0;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+    .floating-version-badge{display:none;}
+    body.drawer-open .floating-help-widget{display:none;}
+    /* :has() va en reglas aparte (y dentro de @supports): un navegador que no lo conozca no debe descartar la regla del menú */
+    @supports selector(:has(a)){
+      body:has(.modal-overlay) .floating-help-widget{display:none;}
+      body:has(.search-overlay) .floating-help-widget{display:none;}
+    }
+    .toast{bottom:calc(92px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px);width:max-content;padding:10px 14px;gap:10px;}
+
+    /* Calendario: las 7 columnas del mismo ancho (un título largo ya no ensancha una) y la lista de abajo da el detalle */
+    .calendar-grid, .week-grid{grid-template-columns:repeat(7,minmax(0,1fr));}
+    .cal-day{min-width:0;overflow:hidden;}
+    .cal-task-chip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .week-day .cal-task-chip{height:6px;min-height:0;padding:0;font-size:0;border-radius:3px;margin-bottom:3px;}
+
+    /* Búsqueda a pantalla completa (mezclaba height:100% con max-height:70vh) */
+    .search-box{max-height:none;}
+  }
 </style>
 </head>
 <body>
@@ -717,7 +785,7 @@
     </div>
     <div id="challenges-quick-access"></div>
     <div class="search-btn import-btn" onclick="openImport()" data-tour="tour-importar">⬆️ Importar tareas</div>
-    <div class="sidebar-footer">Creado por Diego Lerner · diegolernerdl@gmail.com</div>
+    <div class="sidebar-footer">Creado por Diego Lerner · diegolernerdl@gmail.com<div class="sidebar-version" id="sidebar-version" onclick="showVersionNotesAgain()"></div></div>
   </div>
   <div class="main">
     <div class="top-header">
@@ -774,8 +842,8 @@
             <button onclick="setNewPrioFromMobile(null)"><span class="dot" style="background:var(--border-strong)"></span>Ninguna</button>
           </div>
         </div>
-        <input type="date" id="new-task-date" onchange="manualDateOverride=true">
-        <button class="add-task-submit" onclick="addTask()">Agregar</button>
+        <input type="date" id="new-task-date" aria-label="Fecha de la tarea" onchange="manualDateOverride=true;this.classList.toggle('has-date',!!this.value)">
+        <button class="add-task-submit" onclick="addTask()" aria-label="Agregar tarea">Agregar</button>
       </div>
       <div id="smart-chips-preview"></div>
     </div>
@@ -828,11 +896,17 @@ let focusMode = false;
 let justAddedTaskId = null;
 
 const STORAGE_KEY = 'todo-app-state';
-const APP_VERSION = '1.22.0';
-const APP_UPDATED_AT = '2026-09-30'; // formato YYYY-MM-DD, para el botón de versión
+const APP_VERSION = '1.23.0';
+const APP_UPDATED_AT = '2026-10-05'; // formato YYYY-MM-DD, para el botón de versión
 
 /** Resumen de cambios por versión, mostrado una sola vez la primera vez que se abre esa versión. */
 const VERSION_NOTES = {
+  '1.23.0': [
+    '📱 <strong>Celular:</strong> la app ahora se ve a tamaño real en el teléfono (antes se mostraba como la de la computadora, achicada y difícil de leer)',
+    '📱 Arreglamos la barra de arriba (los botones se salían de la pantalla), la barra para agregar tareas (el botón quedaba cortado) y el calendario de la semana',
+    '📱 El botón de ayuda y la versión ya no tapan las tareas; el resumen del día solo aparece en <strong>Mi día</strong>',
+    '💻 En la computadora todo queda igual'
+  ],
   '1.15.0': [
     '🔧 Arreglamos un problema de fondo que hacía que algunos guardados fallaran silenciosamente — ya no debería pasar más',
     '🗒️ Nueva sección <strong>Notas</strong>, con tablero tipo Trello e historial',
@@ -1615,6 +1689,7 @@ function onSwipeEnd(){
 function toggleMobileSidebar(){
   const open = document.querySelector('.sidebar').classList.toggle('mobile-open');
   document.getElementById('sidebar-backdrop').classList.toggle('mobile-open', open);
+  document.body.classList.toggle('drawer-open', open); // oculta los botones flotantes mientras el menú está abierto
 }
 
 let navMoreExpanded = true;
@@ -2174,6 +2249,7 @@ function applyAddTask(newTask){
 function resetAddTaskForm(){
   document.getElementById('new-task-title').value = '';
   document.getElementById('new-task-date').value = '';
+  document.getElementById('new-task-date').classList.remove('has-date');
   newPrio = null; manualPrioOverride = false; manualDateOverride = false;
   document.querySelectorAll('#new-prio .prio-btn').forEach(b=>b.classList.remove('sel'));
   updateMobilePrioDot();
@@ -2716,6 +2792,7 @@ function renderFloatingHelpWidget(){
   const el = document.getElementById('floating-help-container');
   if(!el) return;
   const [y, m, d] = APP_UPDATED_AT.split('-');
+  const sv = document.getElementById('sidebar-version'); if(sv) sv.textContent = `v${APP_VERSION} · Novedades`;
   el.innerHTML = `
     <div class="floating-help-widget">
       <button class="floating-help-btn" onclick="abrirMenuAyuda()" title="¿Cómo funciona esta app?" aria-label="Necesito ayuda">
@@ -4288,8 +4365,8 @@ function renderDayProgress(){
         <span>${icon('calendarDays',14)} Para mañana ya tenés ${tomorrowCount} tarea${tomorrowCount===1?'':'s'} programada${tomorrowCount===1?'':'s'}.</span>
         <button class="btn" style="font-size:12px;padding:5px 12px;" onclick="selectView('tomorrow', null)">Ver mañana</button>
       </div>` : ''}
-      <button class="expand-btn dpc-collapsible" style="margin-top:12px;" onclick="toggleDashboardDetails()">${state.settings.dashboardDetailsOpen ? 'Ocultar detalles' : 'Ver más detalles'}</button>
-      ${state.settings.dashboardDetailsOpen ? `<div class="dpc-collapsible" style="margin-top:8px;padding-top:10px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-2);line-height:1.65;">
+      <button class="expand-btn dpc-collapsible" style="margin-top:12px;" onclick="toggleDashboardDetails()">${dashboardDetailsAreOpen() ? 'Ocultar detalles' : 'Ver más detalles'}</button>
+      ${dashboardDetailsAreOpen() ? `<div class="dpc-collapsible" style="margin-top:8px;padding-top:10px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-2);line-height:1.65;">
         ${mostImportant ? `<div style="font-size:12.5px;margin-bottom:8px;">
           <div style="color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;">🎯 Más importante</div>
           <div style="font-weight:700;font-size:14px;color:var(--text);margin-top:2px;">${escapeHtml(mostImportant.title)}</div>
@@ -4299,7 +4376,14 @@ function renderDayProgress(){
       </div>` : ''}
     </div>`;
 }
+/* En celular los detalles del resumen del día arrancan cerrados (la tarjeta ocupaba más de la mitad de la pantalla).
+   Esa elección es solo de esta sesión: NO toca la configuración guardada, que sigue valiendo para la computadora. */
+let mobileDetailsOpen = false;
+
+function isMobileLayout(){ return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches); }
+function dashboardDetailsAreOpen(){ return isMobileLayout() ? mobileDetailsOpen : !!state.settings.dashboardDetailsOpen; }
 function toggleDashboardDetails(){
+  if(isMobileLayout()){ mobileDetailsOpen = !mobileDetailsOpen; renderDayProgress(); return; }
   state.settings.dashboardDetailsOpen = !state.settings.dashboardDetailsOpen;
   saveState();
   renderDayProgress();
@@ -5828,7 +5912,18 @@ const ADD_LABEL_BY_LIST_KEYWORD = [
   { key:'compras', label:"Agregar un producto..." },
   { key:'agenda', label:"Agregar un evento..." }
 ];
-function getAddPlaceholder(v){
+/* En celular el campo de texto es angosto (138 a 230 px) y el texto de ayuda largo se cortaba a la mitad:
+   se queda con lo principal y lo acorta en un límite de palabra. En computadora se usa el texto completo. */
+function placeholderParaPantalla(texto){
+  if(!isMobileLayout()) return texto;
+  const max = window.innerWidth >= 390 ? 28 : window.innerWidth >= 360 ? 24 : 15;
+  let t = texto.replace(/\s*\(.*$/, '').replace(/\.{3}$/, '').trim();
+  if(t.length > max){ t = t.slice(0, max); t = t.replace(/\s+\S*$/, '').trim(); t += '…'; }
+  else if(t !== texto.trim()) t += '…';
+  return t;
+}
+function getAddPlaceholder(v){ return placeholderParaPantalla(getAddPlaceholderCompleto(v)); }
+function getAddPlaceholderCompleto(v){
   if(v.type==='agenda') return "Agregar un evento...";
   if(v.type==='list'){
     const list = state.lists.find(l=>l.id===v.id);
@@ -5855,6 +5950,7 @@ function render(){
   renderBulkBar();
   if(suggestionsOpen) renderSuggestions();
   const v = state.currentView;
+  document.body.dataset.view = v.type; // lo usa el CSS de celular (ej.: el resumen del día solo se muestra en "Mi día")
   const titleEl = document.getElementById('main-title');
   const subEl = document.getElementById('main-sub');
   const addWrap = document.getElementById('add-task-wrap');
